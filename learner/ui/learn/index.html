@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Urithi · Learn</title>
+  <meta name="description" content="Learn what a guardian taught, the way you need it: read, listen, braille, practise.">
+  <meta name="theme-color" content="#faf7f1" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#14120f" media="(prefers-color-scheme: dark)">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%2314111c%22%2F%3E%3Cpath%20d%3D%22M16%2046V22l16-8%2016%208v24%22%20fill%3D%22none%22%20stroke%3D%22%23e6b85c%22%20stroke-width%3D%224%22%2F%3E%3Cpath%20d%3D%22M24%2046V30h16v16%22%20fill%3D%22none%22%20stroke%3D%22%23e6b85c%22%20stroke-width%3D%224%22%2F%3E%3C%2Fsvg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Source+Serif+4:ital,opsz,wght@0,8..60,600;1,8..60,400&amp;display=swap">
+  <link rel="stylesheet" href="/shared/urithi.css">
+  <script src="/shared/theme.js"></script>
+  <link rel="stylesheet" href="learn.css">
+</head>
+<body data-side="learner">
+  <a class="skip" href="#main" data-i18n="skip">Skip to the knowledge</a>
+
+  <header class="bar">
+    <a class="brand" href="/learn/" aria-label="Urithi, home"><span class="mark" aria-hidden="true"></span> Urithi</a>
+    <div class="controls">
+      <label class="who">
+        <span class="sr-only" data-i18n="whoLabel">Learning as</span>
+        <select id="person" aria-describedby="simulated"></select>
+      </label>
+      <span class="badge simulated" id="simulated" data-i18n="simulated">Simulated identity</span>
+      <button id="lang" class="quiet" aria-label="Language">FR</button>
+      <button type="button" class="quiet theme-toggle">◐</button>
+      <span class="badge" id="network" role="status" aria-live="polite"></span>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <!-- Home: the bodies of knowledge this person may learn -->
+    <section id="home" aria-labelledby="home-title">
+      <h1 id="home-title" data-i18n="homeTitle">What you can learn</h1>
+      <p class="lead" data-i18n="homeLead">Each one was taught by a person, in their own words. Pick one to follow its path.</p>
+      <ul id="bodies" class="cards"></ul>
+      <label class="file-button">
+        <span data-i18n="openFile">Open a knowledge file</span>
+        <input type="file" id="import" accept=".json,application/json">
+      </label>
+      <p class="note" id="import-note" role="status"></p>
+    </section>
+
+    <!-- One knowledge: its contents as a tree, the part in view, and the tutor beside it -->
+    <div id="knowledge" class="knowledge" hidden>
+    <details id="contents-box" class="contents" open>
+      <summary id="contents-summary" data-i18n="contents">Contents</summary>
+      <nav aria-labelledby="contents-summary">
+        <ul id="contents"></ul>
+        <p class="note keys-note" data-i18n="treeKeys">✓ learned · ↻ due · ○ new. Arrows move, Right opens, Enter reads.</p>
+      </nav>
+    </details>
+
+    <div class="center">
+    <!-- Path: where to start, and what can be done with the whole knowledge -->
+    <section id="path" hidden aria-labelledby="path-title">
+      <button class="back quiet" data-go="home" data-i18n="back">Back</button>
+      <h1 id="path-title"></h1>
+      <p class="lead" id="path-lead"></p>
+      <div class="path-actions">
+        <button id="continue" class="primary" data-i18n="continue">Continue</button>
+        <button id="download" class="quiet" data-i18n="download">Keep for offline</button>
+        <button id="exam-start" class="quiet" data-i18n="examButton" hidden>Test yourself</button>
+        <button id="export" class="quiet" data-i18n="saveFile" hidden>Save as a file</button>
+      </div>
+      <div id="where-was" class="where-was" hidden>
+        <button id="resume-part" class="primary"></button>
+        <div id="found-hard" hidden><h2 data-i18n="foundHard">You found these hard</h2><ul id="hard-list"></ul></div>
+      </div>
+      <section id="notebook" class="notebook" hidden aria-labelledby="notebook-title">
+        <h2 id="notebook-title" data-i18n="notebookTitle">Your notebook</h2>
+        <ol id="notebook-list"></ol>
+        <div class="notebook-actions">
+          <button id="sheet-screen" class="quiet" data-i18n="sheetScreen">Revision sheet</button>
+          <button id="sheet-braille" class="quiet" data-i18n="sheetBraille">Revision sheet in braille</button>
+        </div>
+        <pre id="sheet" class="sheet" tabindex="0" hidden></pre>
+      </section>
+
+    </section>
+
+    <!-- Exam: every case the guardian decided, answered, then marked -->
+    <section id="exam" hidden aria-labelledby="exam-title">
+      <button class="back quiet" data-go="path" data-i18n="backToPath">Back to the path</button>
+      <h1 id="exam-title" data-i18n="examTitle">Test yourself</h1>
+      <p class="lead" id="exam-lead"></p>
+      <div id="exam-ask">
+        <p class="note" id="exam-count"></p>
+        <p id="exam-question" class="question"></p>
+        <div class="yesno">
+          <button id="exam-yes" class="primary" data-i18n="yes">Yes</button>
+          <button id="exam-no" class="primary" data-i18n="no">No</button>
+          <button id="exam-skip" class="quiet" data-i18n="examSkip">I don't know</button>
+        </div>
+      </div>
+      <div id="exam-result" hidden>
+        <p class="score" id="exam-score" tabindex="-1"></p>
+        <ol id="exam-feedback" class="exam-feedback"></ol>
+        <button id="exam-again" class="quiet" data-i18n="examAgain">Take it again</button>
+      </div>
+    </section>
+
+    <!-- Unit: one unit, in the form the learner chooses -->
+    <section id="unit" hidden aria-labelledby="unit-title">
+      <button class="back quiet" data-go="path" data-i18n="backToPath">Back to the path</button>
+      <p class="kind" id="unit-kind"></p>
+      <h1 id="unit-title"></h1>
+      <figure class="quote">
+        <blockquote id="unit-quote"></blockquote>
+        <figcaption id="unit-said"></figcaption>
+      </figure>
+      <div class="prereq" id="unit-prereq" role="note" hidden>
+        <span id="prereq-text"></span>
+        <button type="button" id="prereq-go" class="primary" data-i18n="goFirst">Go there first</button>
+      </div>
+
+      <nav class="forms" aria-label="How to learn it" role="tablist">
+        <button role="tab" data-form="read" aria-selected="true" data-i18n="formRead">Read</button>
+        <button role="tab" data-form="listen" aria-selected="false" data-i18n="formListen">Listen</button>
+        <button role="tab" data-form="braille" aria-selected="false" data-i18n="formBraille">Braille</button>
+        <button role="tab" data-form="quiz" aria-selected="false" data-i18n="formQuiz">Practise</button>
+        <button role="tab" data-form="see" aria-selected="false" data-i18n="formSee">See</button>
+      </nav>
+
+      <div class="panel" id="panel-read" role="tabpanel">
+        <ul id="unit-sources" class="sources"></ul>
+      </div>
+      <div class="panel" id="panel-listen" role="tabpanel" hidden>
+        <button id="play" class="primary" data-i18n="play">Play</button>
+        <p class="note" id="listen-note"></p>
+      </div>
+      <div class="panel" id="panel-braille" role="tabpanel" hidden>
+        <div class="grades" role="group" aria-label="Braille grade">
+          <button data-grade="2" aria-pressed="true" data-i18n="grade2">Grade 2</button>
+          <button data-grade="1" aria-pressed="false" data-i18n="grade1">Grade 1</button>
+        </div>
+        <pre id="braille-page" class="sheet" tabindex="0" aria-label="Braille page"></pre>
+        <p class="note" id="braille-note"></p>
+        <button id="brf" class="quiet" disabled data-i18n="brf">Download for an embosser (.brf)</button>
+      </div>
+      <div class="panel" id="panel-quiz" role="tabpanel" hidden>
+        <p id="quiz-question" class="question"></p>
+        <div class="yesno">
+          <button id="quiz-yes" class="primary" data-i18n="yes">Yes</button>
+          <button id="quiz-no" class="primary" data-i18n="no">No</button>
+          <button id="quiz-voice" data-i18n="holdToAnswer">Hold to answer</button>
+        </div>
+        <p id="quiz-feedback" class="feedback" hidden></p>
+      </div>
+
+      <div class="panel" id="panel-see" role="tabpanel" hidden>
+        <h2 class="panel-title" data-i18n="whereTitle">Where it sits, as taught</h2>
+        <div id="see-flow" class="flow"></div>
+        <p class="note" id="see-empty" data-i18n="nothingAround" hidden>Nothing else rests on it or limits it yet.</p>
+        <figure id="see-picture" class="picture" hidden>
+          <h2 class="panel-title" data-i18n="pictureTitle">Illustration</h2>
+          <img id="picture-image" alt="" hidden>
+          <button id="draw" class="quiet" data-i18n="drawPicture">Draw an illustration</button>
+          <figcaption class="note" id="picture-note" role="status"></figcaption>
+        </figure>
+      </div>
+
+      <div class="recall" aria-labelledby="recall-title">
+        <h2 id="recall-title" data-i18n="recallTitle">How well did you know it?</h2>
+        <div class="ratings">
+          <button data-rating="1" data-i18n="again">Again</button>
+          <button data-rating="2" data-i18n="hard">Hard</button>
+          <button data-rating="3" data-i18n="good">Good</button>
+          <button data-rating="4" data-i18n="easy">Easy</button>
+        </div>
+        <p class="note" id="recall-note"></p>
+      </div>
+      <button id="next" class="primary" data-i18n="next">Next</button>
+    </section>
+    </div>
+
+      <aside class="ask" aria-labelledby="ask-title">
+        <h2 id="ask-title" data-i18n="askTitle">Ask about it</h2>
+        <form id="ask-form">
+          <label for="question" class="sr-only" data-i18n="askLabel">Your question</label>
+          <input id="question" autocomplete="off" data-i18n-placeholder="askPlaceholder">
+          <button type="button" id="ask-voice" data-i18n="askVoice">Hold to ask</button>
+          <button class="primary" data-i18n="askButton">Ask</button>
+        </form>
+        <label class="no-screen"><input type="checkbox" id="no-screen"> <span data-i18n="noScreen">No screen: read answers aloud</span></label>
+        <div id="answer" class="answer" hidden></div>
+        <div id="my-questions" class="my-questions" hidden>
+          <h3 data-i18n="myQuestions">Your questions, passed on</h3>
+          <ul id="ticket-list"></ul>
+        </div>
+      </aside>
+
+    <div id="prompter" class="prompter" hidden><span class="who"></span><span class="words"></span></div>
+    </div>
+  </main>
+
+  <footer class="keys" data-i18n="keys">Keys: L listen · B braille · P practise · Y / N answer · 1 to 4 how well you knew it · → next · Esc back</footer>
+
+  <!-- Everything said, once, whole, for a screen reader -->
+  <p id="announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+
+  <script type="module" src="learn.js"></script>
+</body>
+</html>

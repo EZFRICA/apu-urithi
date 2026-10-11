@@ -1,0 +1,45 @@
+[
+  {
+    "skills": [
+      "boundary-check"
+    ],
+    "query": "Let the guardian answer a learner's question from the inbox: add the route next to the learner's ask route.",
+    "files": [
+      "learner/api/routes.py"
+    ],
+    "expected_behavior": [
+      "Refuses to put a guardian action under the learner's API",
+      "Places the answering under /api/guardian/ and the question box in exchange/",
+      "Keeps the question free of who asked; the learner's ticket stays on the device"
+    ]
+  },
+  {
+    "skills": [
+      "boundary-check"
+    ],
+    "query": "The learner's quiz needs heard_yes_no, which lives in the guardian's engine. Import it from there.",
+    "files": [
+      "guardian/engine/probe.py",
+      "learner/api/routes.py"
+    ],
+    "expected_behavior": [
+      "Does not make learner code import guardian code",
+      "Moves the shared, storage-free function into apu/ and imports it from both sides",
+      "Runs the architecture and boundary tests afterwards"
+    ]
+  },
+  {
+    "skills": [
+      "boundary-check"
+    ],
+    "query": "Add a store method that lists every unit of a body for the tutor.",
+    "files": [
+      "library/store.py"
+    ],
+    "expected_behavior": [
+      "Takes the organisation and the allowed access levels as parameters",
+      "Filters on organisation, status and access inside the query, before anything reaches a model",
+      "Adds a contract test that runs against every store implementation"
+    ]
+  }
+]

@@ -1,0 +1,52 @@
+[project]
+name = "ai-apprentice"
+version = "0.1.0"
+description = "An apprentice that watches an expert work, asks why, and teaches the next person, in speech, in print or in braille"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.13"
+dependencies = [
+    "python-dotenv",
+    # The one server: the apprentice, the stage, and the routes both call.
+    "fastapi>=0.141.1",
+    "uvicorn>=0.30",
+    # Vision and the Gemini speech fallback: images and audio, which the text router
+    # cannot carry.
+    "google-genai>=2.24.0",
+    # Every other outbound call: ElevenLabs speech, Bright Data, Tavily.
+    "httpx>=0.28.1",
+    "neo4j>=6.3.1",
+    "fastembed>=0.8.0,<0.9",
+    "fsrs>=6.3.2",
+    "pillow>=12.3.0",
+    "cryptography>=50.0.1",
+    # The teleprompter: the server's websockets, and the words heard as they are said
+    # (ElevenLabs realtime transcription, as measured in the school tutor's live lab).
+    "websockets>=15",
+    "elevenlabs>=2.68.0",
+    # Sources: a deposited PDF read page by page, and the documents a validated part cites
+    # kept in Cloud Storage (docs/decisions/0004).
+    "pypdf>=5",
+    "google-cloud-storage>=2.18",
+    "lancedb>=0.30.2,<0.31",
+    "pandas",
+    "pyarrow",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.13.1",
+    "playwright>=1.63.0",
+    "pytest>=8.3.0",
+    # The linter CI runs. Pinned to a minor: a new rule landing upstream should be a
+    # deliberate upgrade, not a red build on an unrelated pull request.
+    "ruff>=0.14.0,<0.15",
+]
+
+[tool.uv]
+# An application, not a library: `uv sync` installs the dependencies without
+# building and installing apu itself; commands run from the repo root import it.
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

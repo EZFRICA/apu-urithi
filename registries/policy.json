@@ -1,0 +1,24 @@
+{
+  "_comment": "Quotas per role and period, and ceilings on model cost, set by the platform. An organisation's own entry may only narrow them (apu/meter.py). Amounts of model_cost are in the currency of the price table (URITHI_PRICE_*).",
+  "quotas": {
+    "learner": {
+      "questions": {"period": "day", "warn": 80, "stop": 100},
+      "speech_chars": {"period": "day", "warn": 80000, "stop": 100000},
+      "transcribed_seconds": {"period": "day", "warn": 1200, "stop": 1800},
+      "illustrations": {"period": "day", "warn": 16, "stop": 20}
+    },
+    "guardian": {
+      "speech_chars": {"period": "day", "warn": 160000, "stop": 200000},
+      "transcribed_seconds": {"period": "day", "warn": 6000, "stop": 7200},
+      "source_checks": {"period": "day", "warn": 160, "stop": 200},
+      "deposited_bytes": {"period": "month", "warn": 400000000, "stop": 500000000}
+    }
+  },
+  "ceilings": {"request": 0.05, "person_day": 1.0, "organisation_month": 200.0, "platform_day": 50.0},
+  "organisations": {
+    "acme": {
+      "quotas": {"learner": {"questions": {"warn": 40, "stop": 50}}},
+      "ceilings": {"organisation_month": 50.0}
+    }
+  }
+}

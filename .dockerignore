@@ -1,0 +1,19 @@
+# Only what the server runs is sent to the build: never keys or local data.
+.env
+.env.*
+.venv
+.git
+.github
+data
+guardian/data
+learner/data
+exchange/data
+logs
+docs
+tests
+scripts
+*.log
+**/__pycache__
+.pytest_cache
+.ruff_cache
+.mutating

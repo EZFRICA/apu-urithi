@@ -1,0 +1,44 @@
+[
+  {
+    "skills": [
+      "add-a-guarantee"
+    ],
+    "query": "A learner's question longer than 1000 characters is cut silently before the guard reads it, so the end of the question is lost and the learner is not told. Fix it.",
+    "files": [
+      "learner/api/routes.py",
+      "scripts/mutate.py"
+    ],
+    "expected_behavior": [
+      "Adds a test named as the sentence it proves, whose docstring starts with 'Measured:' and says what was seen",
+      "Adds a mutant to scripts/mutate.py and runs it alone with --only before the whole set",
+      "Runs the fix for real and states the result as a count (n in n)",
+      "Adds one paragraph to docs/urithi-measured.md"
+    ]
+  },
+  {
+    "skills": [
+      "add-a-guarantee"
+    ],
+    "query": "The mutation run says SKIPPED for one mutant after the refactor.",
+    "files": [
+      "scripts/mutate.py"
+    ],
+    "expected_behavior": [
+      "Explains that the mutant's real text is no longer in the file exactly once",
+      "Retargets the mutant to the new line and checks it alone with --only",
+      "Does not delete the mutant to make the run pass"
+    ]
+  },
+  {
+    "skills": [
+      "add-a-guarantee"
+    ],
+    "query": "All tests pass. Is the new quota feature done?",
+    "files": [],
+    "expected_behavior": [
+      "Does not call it done on a green suite alone",
+      "Checks for a deliberate defect per guarantee, a real run with numbers, and a line of documentation",
+      "Names what is missing"
+    ]
+  }
+]

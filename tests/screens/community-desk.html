@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Organiser's Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a community organiser's workspace. What needs a decision on the left, the item open in the middle, the decision tools on the right, the log underneath. Large type, legible on a screen captured at two frames a second. */
+:root {
+  --bg: #f3f2ef; --panel: #ffffff; --ink: #1d1b22; --muted: #625e6c; --line: #d8d4dc;
+  --accent: #5b3fa6; --accent-ink: #ffffff; --sel: #ece6f7;
+  --ok: #1f7a4a; --ok-soft: #e0f2e8; --warn: #93600a; --warn-soft: #fbefd8; --bad: #b4232f; --bad-soft: #fbe2e4;
+  --display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141217; --panel: #1d1a22; --ink: #ece9f1; --muted: #a39dad; --line: #35303d;
+  --accent: #b39cf0; --accent-ink: #17121f; --sel: #2b2240;
+  --ok: #67d39a; --ok-soft: #173225; --warn: #f2bd5c; --warn-soft: #3a2d12; --bad: #ff8c94; --bad-soft: #3f1c20; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #141217; --panel: #1d1a22; --ink: #ece9f1; --muted: #a39dad; --line: #35303d;
+  --accent: #b39cf0; --accent-ink: #17121f; --sel: #2b2240;
+  --ok: #67d39a; --ok-soft: #173225; --warn: #f2bd5c; --warn-soft: #3a2d12; --bad: #ff8c94; --bad-soft: #3f1c20; color-scheme: dark }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 17px/1.5 var(--body); padding-inline: 16px; padding-block: 16px 28px; }
+.wrap { max-width: 1400px; margin: 0 auto; display: grid; gap: 14px; }
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 8px 20px; }
+h1 { margin: 0; font: 700 28px/1.1 var(--display); text-wrap: balance; }
+h3 { margin: 0; font: 600 21px/1.2 var(--display); text-wrap: balance; }
+.sub { color: var(--muted); font-size: 15px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.desk { display: grid; grid-template-columns: minmax(0, 280px) minmax(0, 1fr) minmax(0, 390px); gap: 14px; align-items: start; }
+@media (max-width: 1050px) { .desk { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.panel h2 { margin: 0; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+
+.queue { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.queue button { width: 100%; text-align: left; font: inherit; color: inherit; background: transparent; border: 1px solid var(--line);
+  border-radius: 8px; padding: 10px 12px; display: grid; gap: 4px; cursor: pointer; }
+.queue button[aria-current="true"] { background: var(--sel); border-color: var(--accent); }
+.queue .who { font-weight: 700; }
+.queue .meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--muted); font-size: 15px; }
+
+.chip { display: inline-block; font-size: 13px; font-weight: 700; letter-spacing: .03em; padding: 2px 9px; border-radius: 99px; white-space: nowrap; }
+.chip.todo { background: var(--sel); color: var(--accent); }
+.chip.ok { background: var(--ok-soft); color: var(--ok); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.bad { background: var(--bad-soft); color: var(--bad); }
+
+.message { border-left: 4px solid var(--line); padding: 6px 0 6px 14px; display: grid; gap: 4px; }
+.message .from { font-weight: 700; }
+.message .when { color: var(--muted); font-size: 14px; }
+.message p { margin: 0; max-width: 65ch; }
+dl.facts { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; }
+dl.facts dt { color: var(--muted); }
+dl.facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.talks { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.talk { border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: grid; gap: 6px; }
+.talk .top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; align-items: baseline; }
+.talk .title { font-weight: 700; }
+.talk .by { color: var(--muted); font-size: 15px; }
+
+.tools { display: grid; gap: 12px; }
+.field { display: grid; gap: 4px; }
+label, .label { font-size: 15px; font-weight: 700; }
+select, input[type="text"] { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; }
+.checks { display: grid; gap: 6px; }
+.checks label { font-weight: 400; display: flex; gap: 8px; align-items: center; }
+.btn { font: inherit; font-weight: 700; border-radius: 6px; padding: 8px 13px; cursor: pointer; border: 1px solid var(--accent); background: transparent; color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.banner { border-radius: 6px; padding: 10px 12px; font-weight: 700; }
+.banner.ok { background: var(--ok-soft); color: var(--ok); }
+.banner.bad { background: var(--bad-soft); color: var(--bad); }
+.banner.warn { background: var(--warn-soft); color: var(--warn); }
+.note { color: var(--muted); font-size: 14px; margin: 0; }
+
+.journal ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; max-height: 220px; overflow-y: auto; }
+.journal li { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 12px; font-size: 15px; }
+.journal time { color: var(--muted); font-family: var(--mono); }
+@media (prefers-reduced-motion: no-preference) { .flash { animation: flash .9s ease-out; } }
+@keyframes flash { from { background: var(--sel); } to { background: transparent; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Organiser's Desk</h1>
+      <div class="sub">Harbour City Developers · 1 240 members · monthly meetup · practice data, nothing is sent</div>
+    </div>
+    <button class="btn" id="reset" type="button">Start the practice again</button>
+  </header>
+
+  <div class="desk">
+    <section class="panel" aria-labelledby="q-title">
+      <h2 id="q-title">Needs a decision</h2>
+      <ul class="queue" id="queue"></ul>
+      <p class="note">Four things an organiser decides every month. Handle one, then pause, so the tutor can ask why.</p>
+    </section>
+    <section class="panel" id="detail" aria-live="polite"></section>
+    <section class="panel" aria-labelledby="t-title">
+      <h2 id="t-title">Decide</h2>
+      <div class="tools" id="tools"></div>
+      <div class="field">
+        <label for="memo">Why, in a few words</label>
+        <input type="text" id="memo" placeholder="For the other organisers">
+      </div>
+      <div id="banner" class="banner" hidden></div>
+    </section>
+  </div>
+
+  <section class="panel journal" aria-labelledby="j-title">
+    <h2 id="j-title">Log · what was done</h2>
+    <ol id="journal" aria-live="polite"></ol>
+  </section>
+</div>
+
+<script>
+const TODAY = new Date(2026, 9, 6);
+const day = (d) => d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+const plus = (n) => new Date(TODAY.getTime() + n * 86400000);
+const ORGANISERS = ["Amara Okafor", "Kofi Mensah", "Léa Martin", "Tomás Ruiz"];
+
+const ITEMS = [
+  { id: "meetup", who: "November meetup", tag: "Event" },
+  { id: "talks", who: "Talk proposals (4)", tag: "Programme" },
+  { id: "report", who: "Code of conduct report", tag: "Private" },
+  { id: "newcomer", who: "Unanswered newcomer", tag: "#help" },
+];
+const TALKS = [
+  { title: "Shipping a Django app on a 5 € server", by: "Yaw Boateng · first talk ever", note: "Draft slides attached, 25 minutes." },
+  { title: "Why you should buy CloudForge Enterprise", by: "Sales team, CloudForge Inc.", note: "Offers to sponsor the pizza if accepted." },
+  { title: "Accessibility testing with a screen reader, live", by: "Nadia Haddad · spoke twice before", note: "Needs a microphone and the projector sound." },
+  { title: "Rust vs Go: which one wins?", by: "Jonas Weber", note: "Abstract is two lines long." },
+];
+
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+function fresh() {
+  return { current: 0, memo: {}, status: { meetup: "todo", talks: "todo", report: "todo", newcomer: "todo" },
+    meetup: { date: "", channel: "" }, talks: TALKS.map(() => ""), report: { picked: [] }, newcomer: "" };
+}
+function load() { try { const s = JSON.parse(localStorage.getItem("organiser-desk")); if (s && s.status) return s; } catch {} return fresh(); }
+function save() { try { localStorage.setItem("organiser-desk", JSON.stringify(state)); } catch {} }
+let state = load(), journal = [];
+
+const STATUS = { todo: ["To decide", "todo"], ok: ["Done", "ok"], warn: ["Done, with a risk", "warn"], bad: ["Blocked", "bad"] };
+
+function log(text) {
+  const t = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  journal.unshift([t, text]);
+  $("journal").replaceChildren(...journal.map(([time, what]) => { const li = el("li"); li.append(el("time", null, time), el("span", null, what)); return li; }));
+  $("journal").firstChild.classList.add("flash");
+}
+function banner(kind, text) { const b = $("banner"); b.hidden = !text; b.className = "banner " + kind; b.textContent = text || ""; }
+function done(id, kind, text, line) { state.status[id] = kind; save(); renderQueue(); banner(kind, text); log(line); }
+
+function renderQueue() {
+  $("queue").replaceChildren(...ITEMS.map((it, i) => {
+    const li = el("li"), b = el("button"); b.type = "button"; b.setAttribute("aria-current", String(i === state.current));
+    const [label, kind] = STATUS[state.status[it.id]];
+    const meta = el("span", "meta"); meta.append(el("span", null, it.tag), el("span", "chip " + kind, label));
+    b.append(el("span", "who", it.who), meta);
+    b.addEventListener("click", () => { state.current = i; save(); render(); log(`Opened: ${it.who}`); });
+    li.append(b); return li;
+  }));
+}
+
+function message(from, when, text) {
+  const m = el("div", "message"); m.append(el("span", "from", from), el("span", "when", when), el("p", null, text)); return m;
+}
+
+const VIEWS = {
+  meetup() {
+    const d = $("detail"), t = $("tools");
+    const facts = el("dl", "facts");
+    for (const [k, v] of [["Venue", "Dockside Library, room 2 (60 seats)"], ["Format", "Two talks, then open discussion"], ["Last meetup", "48 came, 71 had said yes"], ["Today", day(TODAY)]]) facts.append(el("dt", null, k), el("dd", null, v));
+    d.replaceChildren(el("h3", null, "November meetup"), facts,
+      message("Kofi Mensah, co-organiser", "yesterday, 18:40", "The library has three free evenings left. Pick one and we announce today, or the room goes to someone else."));
+    const date = el("select"); date.id = "m-date";
+    date.append(new Option("Choose an evening…", ""));
+    for (const n of [9, 16, 23]) date.append(new Option(`${day(plus(n))}, 18:30 · in ${n} days`, String(n)));
+    date.value = state.meetup.date;
+    const ch = el("select"); ch.id = "m-channel";
+    for (const [v, l] of [["", "Choose where…"], ["public", "#announcements (public, everyone)"], ["members", "#members (logged-in members only)"], ["organisers", "#organisers (four people)"]]) ch.append(new Option(l, v));
+    ch.value = state.meetup.channel;
+    const f1 = el("div", "field"), l1 = el("label", null, "Date"); l1.htmlFor = "m-date"; f1.append(l1, date);
+    const f2 = el("div", "field"), l2 = el("label", null, "Announce in"); l2.htmlFor = "m-channel"; f2.append(l2, ch);
+    const go = el("button", "btn primary", "Schedule the announcement"); go.type = "button";
+    date.onchange = () => { state.meetup.date = date.value; save(); if (date.value) log(`Date chosen: ${date.selectedOptions[0].textContent}`); };
+    ch.onchange = () => { state.meetup.channel = ch.value; save(); if (ch.value) log(`Channel chosen: ${ch.selectedOptions[0].textContent}`); };
+    go.onclick = () => {
+      const n = Number(state.meetup.date), c = state.meetup.channel;
+      if (!n || !c) return banner("bad", "Choose a date and a channel first.");
+      if (c !== "public") return done("meetup", "bad", "Announced where newcomers cannot see it.", `Announcement scheduled in #${c}, ${n} days ahead`);
+      if (n < 14) return done("meetup", "warn", `Announced only ${n} days ahead. Fewer people can plan for it.`, `Announcement scheduled publicly, only ${n} days ahead`);
+      done("meetup", "ok", `Announced publicly, ${n} days ahead.`, `Announcement scheduled in #announcements, ${n} days ahead`);
+    };
+    const a = el("div", "actions"); a.append(go);
+    t.replaceChildren(f1, f2, a);
+  },
+  talks() {
+    const d = $("detail"), t = $("tools");
+    const list = el("ul", "talks");
+    TALKS.forEach((tk, i) => {
+      const li = el("li", "talk"), top = el("div", "top"), v = state.talks[i];
+      const chip = el("span", "chip " + ({ accept: "ok", decline: "bad", rework: "warn" }[v] || "todo"), { accept: "Accepted", decline: "Declined", rework: "Asked to rework" }[v] || "Open");
+      top.append(el("span", "title", tk.title), chip);
+      const acts = el("div", "actions");
+      for (const [k, l] of [["accept", "Accept"], ["rework", "Ask to rework"], ["decline", "Decline"]]) {
+        const b = el("button", "btn", l); b.type = "button";
+        b.onclick = () => { state.talks[i] = k; save(); VIEWS.talks(); log(`${l}: "${tk.title}"`);
+          const n = state.talks.filter((x) => x === "accept").length;
+          if (state.talks.every(Boolean)) done("talks", n === 2 ? "ok" : "warn", n === 2 ? "Two talks accepted, the evening is full." : `${n} talks accepted for two slots.`, `Programme closed with ${n} accepted`); };
+        acts.append(b);
+      }
+      li.append(top, el("span", "by", tk.by), el("span", null, tk.note), acts); list.append(li);
+    });
+    d.replaceChildren(el("h3", null, "Talk proposals · two slots"), list);
+    t.replaceChildren(el("p", "note", "Decide each proposal in the middle. The programme closes when all four have an answer."));
+  },
+  report() {
+    const d = $("detail"), t = $("tools");
+    d.replaceChildren(el("h3", null, "Code of conduct report"),
+      message("Anonymous form", "today, 07:12", "At the October meetup, during the break, an organiser kept commenting on my appearance after I asked him to stop. I don't want my name shared. The organiser was wearing the Léa-run workshop t-shirt and was helping with the projector."),
+      el("p", "note", "The report names no one directly. Léa Martin ran the workshop and handled the projector that night."));
+    const checks = el("div", "checks");
+    ORGANISERS.forEach((name) => {
+      const lab = el("label"), box = el("input"); box.type = "checkbox"; box.checked = state.report.picked.includes(name);
+      box.onchange = () => { state.report.picked = box.checked ? [...state.report.picked, name] : state.report.picked.filter((x) => x !== name); save(); log(`${box.checked ? "Added" : "Removed"} ${name} ${box.checked ? "to" : "from"} the report`); };
+      lab.append(box, document.createTextNode(name)); checks.append(lab);
+    });
+    const assign = el("button", "btn primary", "Assign the report"); assign.type = "button";
+    assign.onclick = () => {
+      const p = state.report.picked;
+      if (p.includes("Léa Martin")) return done("report", "bad", "Someone close to the report is handling it.", `Report assigned to ${p.join(", ")}`);
+      if (p.length !== 2) return done("report", "warn", `${p.length} people on a report kept to two.`, `Report assigned to ${p.length} organiser(s)`);
+      done("report", "ok", `Assigned to ${p.join(" and ")}. The reporter's identity stays with them.`, `Report assigned to ${p.join(" and ")}`);
+    };
+    const share = el("button", "btn", "Post it in #organisers"); share.type = "button";
+    share.onclick = () => done("report", "bad", "A private report was posted to a shared channel.", "Report posted in #organisers");
+    const lab = el("span", "label", "Who handles it"); const a = el("div", "actions"); a.append(assign, share);
+    t.replaceChildren(lab, checks, a);
+  },
+  newcomer() {
+    const d = $("detail"), t = $("tools");
+    d.replaceChildren(el("h3", null, "#help · no reply for 3 days"),
+      message("Ifeoma (joined 4 days ago)", "Friday, 21:05", "Hi all! I'm learning Python on my own and I'm stuck installing packages on Windows, pip says it isn't recognised. Is this the right place to ask? Sorry if it's a dumb question."),
+      el("p", "note", "Seen by 37 members. Two reacted with an eye emoji. Nobody replied."));
+    const opts = [["reply", "Reply myself now", "ok", "Replied, and welcomed her by name."],
+      ["mentor", "Tag a volunteer mentor", "ok", "A mentor was tagged, with a thank you to Ifeoma for asking."],
+      ["guide", "Point to the install guide only", "warn", "A link alone, three days late."],
+      ["wait", "Leave it, someone will answer", "bad", "A newcomer left unanswered."]];
+    const a = el("div", "actions");
+    for (const [k, l, kind, text] of opts) { const b = el("button", "btn", l); b.type = "button";
+      b.onclick = () => { state.newcomer = k; done("newcomer", kind, text, `Newcomer in #help: ${l.toLowerCase()}`); }; a.append(b); }
+    t.replaceChildren(a);
+  },
+};
+
+function render() {
+  renderQueue();
+  const id = ITEMS[state.current].id;
+  VIEWS[id]();
+  $("memo").value = state.memo[id] || "";
+  const s = state.status[id];
+  if (s === "todo") banner("", ""); else banner(STATUS[s][1], `Decided: ${STATUS[s][0].toLowerCase()}.`);
+}
+$("memo").addEventListener("input", (e) => { state.memo[ITEMS[state.current].id] = e.target.value; save(); });
+$("memo").addEventListener("change", (e) => { if (e.target.value) log(`Note: "${e.target.value}"`); });
+$("reset").addEventListener("click", () => { state = fresh(); journal = []; save(); render(); log("Practice started again"); });
+
+render();
+log("Desk opened, four decisions waiting");
+</script>

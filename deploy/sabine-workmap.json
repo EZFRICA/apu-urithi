@@ -1,0 +1,149 @@
+{
+  "map_id": "de480775-25df-441b-be44-e630ce42fbea",
+  "task": "Code a supplier invoice",
+  "expert": "Sabine",
+  "created_at": "2026-10-04T09:26:03.898140+00:00",
+  "confirmed_at": "2026-10-04T09:27:11.144596+00:00",
+  "steps": [
+    {
+      "step_id": "s1",
+      "number": 1,
+      "title": "Novak Precision not found in the vendor master",
+      "screen_moment": 74.0,
+      "observed": "Novak Precision not found in the vendor master",
+      "decision": "Novak Precision not found in the vendor master",
+      "reason": "That is the vendor master. Every supplier we have ever paid is in there, with the bank account we pay them on.",
+      "guardrail_ids": [],
+      "confirmed": false
+    },
+    {
+      "step_id": "s2",
+      "number": 2,
+      "title": "cost center changed from 4711 to 0400",
+      "screen_moment": 192.0,
+      "observed": "cost center changed from 4711 to 0400",
+      "decision": "cost center changed from 4711 to 0400",
+      "reason": "Equipment over five thousand euros is always capex. And if I do not recognise the supplier, I stop and ask the controller before booking anything.",
+      "guardrail_ids": [
+        "cf35afff-9a33-4489-8a94-38b579d40d1e",
+        "319e5a66-258e-4d02-93c5-cb6326b5d26c"
+      ],
+      "confirmed": false
+    }
+  ],
+  "guardrails": [
+    {
+      "guardrail_id": "cf35afff-9a33-4489-8a94-38b579d40d1e",
+      "when": "equipment is over five thousand euros",
+      "then": "treat it as capex",
+      "quote": "Equipment over five thousand euros is always capex. And if I do not recognise the supplier, I stop and ask the controller before booking anything.",
+      "asked_at": 192.0,
+      "severity": "check",
+      "provenance": {
+        "verdict": "conflicted",
+        "checked_at": "2026-10-04T09:26:06.187233+00:00",
+        "query": "Germany statutory capitalization threshold equipment capex EStG HGB | Aktivierungsgrenze GWG Wirtschaftsgüter EStG HGB Grenze",
+        "note": "haufe.de states: Die betragsmäßige GWG-Grenze pro angeschafftem Wirtschaftsgut liegt bei 800 EUR The expert said: Equipment over five thousand euros is always capex. And if I do not recognise the supplier, I stop and ask the controller before booking anything.",
+        "citations": [
+          {
+            "url": "https://www.haufe.de/finance/buchfuehrung-kontierung/geringwertige-wirtschaftsgueter/qual-der-wahl_186_93996.html",
+            "title": "GWG-Grenzen 2026 und Abschreibungsmöglichkeiten",
+            "domain": "haufe.de",
+            "says": "Die betragsmäßige GWG-Grenze pro angeschafftem Wirtschaftsgut liegt bei 800 EUR",
+            "agrees": false,
+            "jurisdiction": "DE",
+            "published": "",
+            "backend": "brightdata",
+            "retrieved_at": "2026-10-04"
+          },
+          {
+            "url": "https://de.wikipedia.org/wiki/Geringwertiges_Wirtschaftsgut",
+            "title": "Geringwertiges Wirtschaftsgut",
+            "domain": "de.wikipedia.org",
+            "says": "Sofortabschreibung GWG bei Anschaffungs- oder Herstellungskosten ohne Umsatzsteuer von nicht mehr als 800 €",
+            "agrees": false,
+            "jurisdiction": "DE",
+            "published": "",
+            "backend": "brightdata",
+            "retrieved_at": "2026-10-04"
+          },
+          {
+            "url": "https://www.dashoefer.de/thema/geringwertige-wirtschaftsgueter.html",
+            "title": "Geringwertige Wirtschaftsgüter | www.dashoefer.de",
+            "domain": "dashoefer.de",
+            "says": "In § 6 Abs. 2 und Abs. 2a EStG werden verschiedene Betragsgrenzen definiert (150 Euro, 410 Euro und 1.000 Euro)",
+            "agrees": false,
+            "jurisdiction": "DE",
+            "published": "",
+            "backend": "brightdata",
+            "retrieved_at": "2026-10-04"
+          }
+        ]
+      }
+    },
+    {
+      "guardrail_id": "319e5a66-258e-4d02-93c5-cb6326b5d26c",
+      "when": "the supplier is not recognised",
+      "then": "stop and ask the controller before booking anything",
+      "quote": "Equipment over five thousand euros is always capex. And if I do not recognise the supplier, I stop and ask the controller before booking anything.",
+      "asked_at": 192.0,
+      "severity": "stop",
+      "provenance": {
+        "verdict": "house_rule",
+        "checked_at": "2026-10-04T09:27:04.893714+00:00",
+        "query": "",
+        "note": "No external authority would govern this.",
+        "citations": []
+      }
+    }
+  ],
+  "rulings": [
+    {
+      "ruling_id": "d782253e-f759-4f4f-89c3-701bfd440923",
+      "guardrail_id": "cf35afff-9a33-4489-8a94-38b579d40d1e",
+      "kind": "source",
+      "case": {
+        "amount_eur": 2900.0,
+        "source": "https://www.haufe.de/finance/buchfuehrung-kontierung/geringwertige-wirtschaftsgueter/qual-der-wahl_186_93996.html",
+        "public_threshold": 800.0
+      },
+      "question": "haufe.de says: \"Die betragsmäßige GWG-Grenze pro angeschafftem Wirtschaftsgut liegt bei 800 EUR\" You said 5,000. Here is 2,900 of equipment, where the two disagree. Do you treat it as capex, or not?",
+      "said": "If the law says eight hundred, then yes, that is capex, we follow the law.",
+      "applies": true,
+      "by": "Sabine",
+      "at": "2026-10-04T09:27:08.398127+00:00"
+    },
+    {
+      "ruling_id": "eabdba1c-ccbd-4847-98d5-1abb057fe7c3",
+      "guardrail_id": "cf35afff-9a33-4489-8a94-38b579d40d1e",
+      "kind": "boundary",
+      "case": {
+        "amount_eur": 5000.0
+      },
+      "question": "Here is one for exactly 5,000. You said that when equipment is over five thousand euros, you treat it as capex. Is exactly 5,000 over, or not?",
+      "said": "Exactly five thousand counts. Five thousand is capex.",
+      "applies": true,
+      "by": "Sabine",
+      "at": "2026-10-04T09:27:09.532547+00:00"
+    },
+    {
+      "ruling_id": "65c2d505-ba75-41bf-850a-ece8d86ba476",
+      "guardrail_id": "cf35afff-9a33-4489-8a94-38b579d40d1e",
+      "kind": "collision",
+      "case": {
+        "amount_eur": 7500.0,
+        "both_true": [
+          "equipment is over five thousand euros",
+          "the supplier is not recognised"
+        ],
+        "first": "319e5a66-258e-4d02-93c5-cb6326b5d26c",
+        "other": "319e5a66-258e-4d02-93c5-cb6326b5d26c"
+      },
+      "question": "Say both happen on the same invoice: equipment is over five thousand euros, and the supplier is not recognised. One rule says treat it as capex, the other says stop and ask the controller before booking anything. What do you do first?",
+      "said": "The supplier first, always. Nothing gets coded until the controller has cleared the supplier.",
+      "applies": null,
+      "by": "Sabine",
+      "at": "2026-10-04T09:27:11.140181+00:00"
+    }
+  ]
+}

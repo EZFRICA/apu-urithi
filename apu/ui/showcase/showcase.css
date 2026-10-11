@@ -1,0 +1,66 @@
+/* The showcase at /: static, no call to any side, on the shared look. */
+
+.nav-link { color: var(--ink2); text-decoration: none; padding: 10px 12px; }
+.button { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 18px; border-radius: 12px;
+  font-weight: 600; text-decoration: none; }
+.button.teach { background: var(--gold); color: var(--on-accent); }
+.button.learn { color: var(--ink); border: 1px solid var(--line-strong); }
+
+main.showcase { max-width: 1200px; padding: 0 24px 48px; }
+.hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 48px;
+  align-items: center; padding: 64px 0 40px; }
+.pitch { display: grid; gap: 22px; }
+.eyebrow { margin: 0; color: var(--gold-text); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: 13px; }
+.pitch h1 { margin: 0; font-size: clamp(38px, 5vw, 60px); line-height: 1.06; letter-spacing: -0.01em; }
+.pitch .lead { margin: 0; font-size: 19px; color: var(--ink2); max-width: 36em; }
+.ctas { display: flex; flex-wrap: wrap; gap: 12px; }
+.ctas .button { padding: 14px 22px; }
+
+.example { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 26px;
+  display: grid; gap: 16px; }
+.example figcaption { color: var(--muted); font-size: 14px; }
+.example .asked { justify-self: end; margin: 0; background: var(--raised); border-radius: 14px 14px 4px 14px;
+  padding: 12px 16px; max-width: 80%; }
+.example .answered { background: var(--gold-soft); border: 1px solid var(--line-strong); border-radius: 14px 14px 14px 4px;
+  padding: 16px 18px; display: grid; gap: 8px; }
+.example .answered p { margin: 0; }
+.example .cite { font-family: var(--mono); font-size: 14px; color: var(--gold-text); }
+.example blockquote { margin: 0; padding: 14px 18px; border-radius: 12px; background: var(--panel2); font-style: italic;
+  font-size: 19px; line-height: 1.45; display: grid; gap: 6px; }
+.example blockquote .who { font-family: var(--font); font-style: normal; font-size: 13px; color: var(--muted); }
+
+#how { padding: 32px 0; display: grid; gap: 24px; }
+#how h2 { font-family: var(--serif); font-size: 34px; margin: 0; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 18px; }
+.steps li { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px; display: grid; gap: 8px; align-content: start; }
+.steps .n { font-family: var(--mono); color: var(--gold-text); font-size: 14px; }
+.steps .learner .n { color: var(--teal-text); }
+.steps strong { font-size: 19px; }
+.steps li > span:last-child { color: var(--ink2); }
+
+.promises { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 20px; padding: 24px 0; }
+.promises div { border-top: 1px solid var(--line-strong); padding-top: 18px; display: grid; gap: 6px; }
+.promises span { color: var(--ink2); }
+
+.foot { border-top: 1px solid var(--line); max-width: 1200px; margin: 0 auto; padding: 24px; display: flex; flex-wrap: wrap;
+  gap: 10px 28px; justify-content: space-between; color: var(--muted); font-size: 14px; }
+
+.inside { padding: 32px 0; display: grid; gap: 26px; }
+.inside h2 { font-family: var(--serif); font-size: 34px; margin: 0; }
+.memories { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 16px; }
+.memory { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: grid; gap: 6px; align-content: start; }
+.memory .n { font-family: var(--mono); font-size: 13px; color: var(--gold-text); }
+.memory.learner .n { color: var(--teal-text); }
+.memory.library .n { color: var(--ink2); }
+.memory > span:last-child { color: var(--ink2); }
+.boundary { margin: 0; display: grid; gap: 12px; }
+.boundary figcaption { color: var(--muted); font-size: 14px; }
+.sides { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; }
+.sides > div { border-radius: 14px; padding: 18px; display: grid; gap: 6px; border: 1px solid var(--line-strong); }
+.sides .guardian { background: var(--gold-soft); }
+.sides .learner { background: var(--teal-soft); }
+.sides .between { background: var(--panel2); border-style: dashed; }
+.sides span { color: var(--ink2); }
+.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 18px; }
+.features div { border-top: 1px solid var(--line-strong); padding-top: 14px; display: grid; gap: 6px; }
+.features span { color: var(--ink2); }

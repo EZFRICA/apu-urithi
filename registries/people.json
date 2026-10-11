@@ -1,0 +1,21 @@
+{
+  "_comment": "Simulated identities. Who someone is, is chosen here, not proven; which organisations they belong to, their role and what they may see in each are decided from this file only.",
+  "organisations": [
+    {"organisation": "urithi", "name": "Urithi community"},
+    {"organisation": "acme", "name": "Acme finance"}
+  ],
+  "people": [
+    {"person_id": "ezekias", "name": "Ezekias"},
+    {"person_id": "sabine", "name": "Sabine"},
+    {"person_id": "member", "name": "A community member"},
+    {"person_id": "visitor", "name": "A visitor"}
+  ],
+  "memberships": [
+    {"person_id": "ezekias", "organisation": "urithi", "role": "guardian", "access": "restricted"},
+    {"person_id": "sabine", "organisation": "urithi", "role": "guardian", "access": "restricted"},
+    {"person_id": "member", "organisation": "urithi", "role": "learner", "access": "community"},
+    {"person_id": "visitor", "organisation": "urithi", "role": "learner", "access": "public"},
+    {"person_id": "sabine", "organisation": "acme", "role": "guardian", "access": "restricted"},
+    {"person_id": "ezekias", "organisation": "acme", "role": "learner", "access": "community"}
+  ]
+}

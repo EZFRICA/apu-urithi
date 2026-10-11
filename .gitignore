@@ -1,0 +1,62 @@
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# ── Tool caches ──────────────────────────────────────────────────────────────
+# pytest and ruff each drop a .gitignore of their own inside these, so they are
+# already ignored on this machine; named here so a fresh clone behaves the same.
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ── Secrets ──────────────────────────────────────────────────────────────────
+# .env holds the provider keys. .env.example is the documented template and IS tracked.
+.env
+.env.*
+!.env.example
+
+# ── Per-machine state, not source ────────────────────────────────────────────
+# Each side's own data (the guardian's Work Maps, the learners' cards and renderings, the
+# question box) and the log. They hold what people said, and a fresh clone must not
+# inherit another machine's.
+data/
+guardian/data/
+learner/data/
+exchange/data/
+logs/
+*.log
+# SQLite in WAL mode writes these beside its database.
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+*.tmp
+
+# ── Local one-offs ───────────────────────────────────────────────────────────
+# Generated commit scripts: meant to be run once and deleted, never committed.
+commit-*.sh
+commit_changes.sh
+
+# The local embedding model (ONNX, about 240 MB): downloaded once, never committed.
+models/
+
+# ── Not shipped: a helper that needs a key and is of no use to a user ────────
+scripts/list_gemini_models.py
+
+# ── Editors and OS ───────────────────────────────────────────────────────────
+.DS_Store
+.idea/
+.vscode/
+
+# Present only while scripts/mutate.py holds a deliberate defect in the tree.
+.mutating
+
+# ── Working notes ────────────────────────────────────────────────────────────
+# The action journal's entries stay on the machine that wrote them. Tracked on purpose:
+# README.md and the user documents in docs/, and the contributors' rules for every tool
+# (CLAUDE.md, .claude/, AGENTS.md, docs/agents-*.md, docs/journal/README.md).
+docs/journal/*
+!docs/journal/README.md

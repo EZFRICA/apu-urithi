@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Urithi · Teach</title>
+  <meta name="description" content="Teach what you know by talking. Urithi asks why, structures it, and you decide who may learn it.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Source+Serif+4:ital,opsz,wght@0,8..60,600;1,8..60,400&amp;display=swap">
+  <link rel="stylesheet" href="/shared/urithi.css">
+  <script src="/shared/theme.js"></script>
+  <link rel="stylesheet" href="teach.css">
+</head>
+<body data-side="guardian">
+  <a class="skip" href="#main" data-i18n="skip">Skip to the conversation</a>
+  <header class="bar">
+    <a class="brand" href="/teach/"><span class="mark" aria-hidden="true"></span> <span data-i18n="brand">Urithi · Teach</span></a>
+    <div class="controls">
+      <label><span class="sr-only" data-i18n="whoLabel">Teaching as</span><select id="person" aria-describedby="simulated"></select></label>
+      <span class="badge simulated" id="simulated" data-i18n="simulated">Simulated identity</span>
+      <button id="lang" class="quiet" aria-label="Language">FR</button>
+      <button type="button" class="quiet theme-toggle">◐</button>
+      <a class="badge" href="/learn/" data-i18n="learn">Learn</a>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1" class="teach">
+    <section id="setup" aria-labelledby="setup-title">
+      <h1 id="setup-title" data-i18n="setupTitle">Teach what you know</h1>
+      <p class="lead" data-i18n="setupLead">Talk the way you would to someone new. Urithi asks why at the right moment,
+        writes down your rules in your words, tests them with you, and nothing is published until
+        you have heard it back and said it is right.</p>
+      <section class="inbox" id="inbox" hidden aria-labelledby="inbox-title">
+        <h2 id="inbox-title" data-i18n="inboxTitle">What learners asked that you have not covered</h2>
+        <p class="note" data-i18n="inboxLead">Who asked is not kept, only the question.</p>
+        <ul id="inbox-list" class="items"></ul>
+      </section>
+      <section class="resume" id="resume" hidden aria-labelledby="resume-title">
+        <h2 id="resume-title" data-i18n="resumeTitle">Carry on teaching</h2>
+        <ul id="resume-list" class="items"></ul>
+      </section>
+      <form id="start-form">
+        <label for="task" data-i18n="taskLabel">What are you teaching?</label>
+        <input id="task" value="Building and leading a tech community" required>
+        <label for="taught" data-i18n="teachIn">I teach in</label>
+        <select id="taught">
+          <option value="en" lang="en" data-i18n="inEnglish">English</option>
+          <option value="fr" lang="fr" data-i18n="inFrench">French</option>
+        </select>
+        <button class="primary" data-i18n="start">Start</button>
+      </form>
+    </section>
+
+    <section id="session" hidden>
+      <div class="session-head">
+        <button type="button" id="home" class="quiet back" data-i18n="back">Back</button>
+        <h1 id="talk-title"></h1>
+        <ol id="states" class="states" data-i18n-label="stateLabel"></ol>
+        <div class="class-open">
+          <button type="button" id="class-screen" data-i18n="classScreen">Classroom: show my screen</button>
+          <button type="button" id="class-camera" class="quiet" data-i18n="classCamera">Classroom: camera</button>
+        </div>
+      </div>
+
+      <!-- The classroom mode: full screen, Urithi the only pupil for now (guardian/ui/teach/classroom.js) -->
+      <dialog id="classroom" class="classroom" aria-labelledby="class-title">
+        <header class="class-bar">
+          <span class="class-live"><span aria-hidden="true">●</span> <span data-i18n="inClass">In class</span> · <span class="class-clock">0:00</span></span>
+          <h2 id="class-title"></h2>
+          <span class="badge" data-i18n="onePupil">1 pupil: Urithi</span>
+          <button type="button" id="class-float" class="quiet" data-i18n="classFloat">Keep Urithi beside my work</button>
+          <button type="button" id="class-pause" class="quiet switch" aria-pressed="true" data-i18n="classVisionOn">Vision: on</button>
+          <button type="button" id="class-end" class="primary" data-i18n="classEnd">End the class</button>
+        </header>
+        <div class="class-body">
+          <figure class="class-screen">
+            <video id="class-video" autoplay muted playsinline aria-label="Your shared screen or camera"></video>
+            <div id="class-point" class="class-point" hidden aria-hidden="true"></div>
+            <figcaption class="note" id="class-saw" role="status"></figcaption>
+          </figure>
+          <aside class="class-pupil" id="class-pupil" aria-labelledby="class-pupil-title">
+            <h3 id="class-pupil-title">Urithi</h3>
+            <p class="note" id="class-status" role="status" data-i18n="classWaits">Waits for a pause, then asks why.</p>
+            <div id="class-question" class="class-question" hidden></div>
+            <div class="class-switches" role="group" data-i18n-label="classSwitches">
+              <button type="button" id="class-mic" class="switch" aria-pressed="false" data-i18n="classMicOff">Microphone: off</button>
+              <button type="button" id="class-handsfree" class="switch" aria-pressed="true" data-i18n="classHandsFreeOn">Listen after a question: on</button>
+              <button type="button" id="class-silent" class="switch" aria-pressed="false" data-i18n="classSilentOff">Silent mode: off</button>
+            </div>
+            <div class="class-talk">
+              <div class="class-buttons">
+                <button type="button" id="class-talk" class="primary" data-i18n="classTalk">Answer aloud</button>
+                <button type="button" id="class-pass" class="quiet" hidden data-i18n="classPass">Pass this question</button>
+                <button type="button" id="class-remember" data-i18n="classRemember">Remember this screen</button>
+              </div>
+              <form id="class-say" class="class-say">
+                <label for="class-said" class="sr-only" data-i18n="youSay">What you say</label>
+                <input type="text" id="class-said" autocomplete="off" data-i18n-placeholder="classType">
+                <button data-i18n="send">Send</button>
+              </form>
+            </div>
+            <h3 data-i18n="classBoard">Noted in this class</h3>
+            <ol id="class-board" class="class-board" aria-live="polite"></ol>
+            <p class="note" data-i18n="classDraft">Drafts, until you validate them on your page.</p>
+          </aside>
+        </div>
+        <div id="class-prompter" class="prompter" hidden><span class="who"></span><span class="words"></span></div>
+      </dialog>
+      <div class="columns">
+        <div class="talk" aria-labelledby="talk-title">
+          <p class="note" id="answering" role="status"></p>
+          <ol id="transcript" class="transcript" aria-live="polite"></ol>
+          <p class="probe-note" id="mode-note"></p>
+          <div class="dock">
+            <div id="prompter" class="prompter" hidden><span class="who"></span><span class="words"></span></div>
+            <form id="say-form">
+              <label for="said" class="sr-only" data-i18n="youSay">What you say</label>
+              <textarea id="said" rows="2" data-i18n-placeholder="placeholder"></textarea>
+              <div class="say-actions">
+                <label class="file-button" for="deposit"><span data-i18n="deposit">Document</span>
+                  <input type="file" id="deposit" accept="application/pdf,audio/*,image/png,image/jpeg,image/webp"></label>
+                <button type="button" id="hold" data-i18n="hold">Hold to talk (Space)</button>
+                <button class="primary" data-i18n="send">Send</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <aside class="map" aria-labelledby="map-title">
+          <div class="map-head">
+            <h2 id="map-title" data-i18n="mapTitle">What Urithi understood</h2>
+            <span class="note" id="map-count"></span>
+          </div>
+          <p class="note" id="teachable"></p>
+          <section id="proposals-box" class="proposals-box" hidden aria-labelledby="proposals-title">
+            <h3 id="proposals-title" data-i18n="proposalsTitle">Proposed to save</h3>
+            <p class="note" data-i18n="proposalsLead">Nothing enters the knowledge tree until you save it.</p>
+            <ul id="proposals-list" class="proposals-list"></ul>
+          </section>
+          <ul id="tree"></ul>
+          <p class="note keys-note" data-i18n="treeKeys">Arrows move, Right opens, Left closes.</p>
+          <section id="notes-box" class="notes-box" hidden aria-labelledby="notes-title">
+            <h3 id="notes-title" data-i18n="notesTitle">Urithi's notes</h3>
+            <p class="note" data-i18n="notesLead">What Urithi heard and saw in this session, kept in working memory.</p>
+            <ul id="notes-list" class="notes-list"></ul>
+          </section>
+          <section id="sources-box" class="sources-box" hidden aria-labelledby="sources-title">
+            <h3 id="sources-title" data-i18n="sourcesTitle">Your documents</h3>
+            <p class="note" data-i18n="sourcesLead">Kept for this draft; only what a validated part cites is saved.</p>
+            <ul id="sources-list"></ul>
+          </section>
+          <div class="map-actions">
+            <button id="sources" data-i18n="sources">Check against public sources</button>
+            <button id="debrief" class="primary" data-i18n="debrief">Test my rules</button>
+          </div>
+        </aside>
+      </div>
+
+      <section id="confirm" class="confirm" hidden aria-labelledby="confirm-title">
+        <h2 id="confirm-title" data-i18n="confirmTitle">Is this how it works?</h2>
+        <pre id="teach-back" class="teach-back" tabindex="0"></pre>
+        <div id="answers-box" hidden>
+          <h3 data-i18n="answersTitle">Your answers to the test cases</h3>
+          <ol id="answers" class="answers"></ol>
+        </div>
+        <div class="map-actions">
+          <button id="confirm-yes" class="primary" data-i18n="yes">Yes, that is right</button>
+          <input id="correction" data-i18n-placeholder="correctionPlaceholder" aria-labelledby="confirm-no">
+          <button id="confirm-no" data-i18n="correct">Correct it</button>
+        </div>
+      </section>
+
+      <section id="publish" class="publish" hidden aria-labelledby="publish-title">
+        <h2 id="publish-title" data-i18n="publishTitle">Who may learn each part?</h2>
+        <p class="note" data-i18n="publishLead">Public: anyone. Community: members. Restricted: only those you trust with it.
+          A part that repeats the words of a more restricted part is raised to that level, so a
+          sentence is never open in one place and closed in another.</p>
+        <ol id="publish-units" class="publish-units"></ol>
+        <button id="publish-go" class="primary" data-i18n="publish">Publish</button>
+        <div class="note" id="publish-note" role="status"></div>
+      </section>
+    </section>
+  </main>
+  <p id="announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+  <script type="module" src="teach.js"></script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Urithi · Stage</title>
+  <meta name="description" content="Urithi, presented on the deck a blind or low-vision new hire works with: the expert's Work Map read aloud, printed in braille, and enforced before the save.">
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%231a1426%22%2F%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2226%22%20r%3D%229%22%20fill%3D%22%23cfc6e2%22%2F%3E%3Ccircle%20cx%3D%2241%22%20cy%3D%2238%22%20r%3D%2213%22%20fill%3D%22%238b5cf6%22%2F%3E%3C%2Fsvg%3E">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+
+  <header class="keynote-navbar">
+    <a class="nav-brand" href="/teach/" title="Open the guardian's page">
+      <div class="brand-badge" aria-hidden="true">U</div>
+      <div class="brand-title">
+        Urithi
+        <span class="brand-edition">Stage</span>
+      </div>
+    </a>
+
+    <!-- The three parts of the job, the same three detents as the wheel on the deck. -->
+    <nav class="nav-center" aria-label="Part of the job">
+      <button class="model-pill-btn active" data-chapter="map" aria-pressed="true">1 · Work Map</button>
+      <button class="model-pill-btn" data-chapter="case" aria-pressed="false">2 · The case</button>
+      <button class="model-pill-btn" data-chapter="exam" aria-pressed="false">3 · Exam</button>
+    </nav>
+
+    <div class="nav-actions">
+      <div class="map-selector">
+        <label for="map-select">Work Map:</label>
+        <select id="map-select"><option>Loading…</option></select>
+      </div>
+
+      <div id="status-pill" class="status-pill" role="status" aria-live="polite">
+        <span class="status-dot"></span>
+        <span id="status-text">Connecting…</span>
+      </div>
+
+      <button id="toggle-mic-btn" class="icon-btn" title="Talk: answer the exam out loud (hold Space)" aria-label="Talk" aria-pressed="false">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      </button>
+
+      <button id="toggle-camera-btn" class="icon-btn" title="Presenter camera" aria-label="Presenter camera" aria-pressed="false">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+      </button>
+
+      <button id="toggle-mirror-btn" class="icon-btn" title="Mirror the camera" aria-label="Mirror the camera" aria-pressed="false">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+      </button>
+
+      <button id="toggle-drawer-btn" class="icon-btn" title="Side panels" aria-label="Side panels" aria-pressed="false">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+      </button>
+
+      <button id="toggle-fullscreen-btn" class="icon-btn" title="Full screen" aria-label="Full screen">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="keynote-center-viewport">
+    <div class="elevenlabs-capsule-frame" id="capsule-frame">
+
+      <video id="camera-feed" class="camera-video-layer" autoplay playsinline muted></video>
+
+      <!-- What the deck says, in print, and what the embosser printed, in braille. -->
+      <div class="keynote-top-overlay">
+        <div id="prompter-stage-container" class="prompter-container">
+          <div class="prompter-speaker-badge idle"><span>Ready</span></div>
+          <div class="prompter-text-window">
+            <div class="prompter-text empty">Loading the Work Map…</div>
+          </div>
+          <div class="prompter-card-slot"></div>
+
+          <!-- What a screen reader hears: each sentence once, whole. -->
+          <p id="prompter-announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+        </div>
+      </div>
+
+      <div id="equipment-3d-stage" class="equipment-3d-stage" aria-hidden="true"
+           title="The Apprentice Deck"></div>
+
+      <nav class="camera-views-bar" aria-label="Camera angles">
+        <button class="view-shot-btn active" data-shot="stage" aria-pressed="true">The deck</button>
+        <button class="view-shot-btn" data-shot="controls" aria-pressed="false">The keys</button>
+        <button class="view-shot-btn" data-shot="ports" aria-pressed="false">The ports</button>
+        <button class="view-shot-btn" data-shot="inhand" aria-pressed="false">On the desk</button>
+      </nav>
+    </div>
+  </main>
+
+  <aside id="hardware-parts-drawer" class="hardware-parts-drawer" aria-labelledby="drawer-title">
+    <div class="drawer-header">
+      <h2 class="drawer-title" id="drawer-title">The Apprentice Deck</h2>
+      <span class="drawer-subtitle">For a new hire who cannot see the screen</span>
+    </div>
+    <div id="parts-list" class="parts-list" role="group" aria-label="Press a part of the deck"></div>
+  </aside>
+
+  <aside id="hardware-inspector-card" class="hardware-inspector-card" aria-labelledby="inspector-title">
+    <div class="inspector-badge-row">
+      <span id="inspector-badge" class="inspector-badge"></span>
+      <span id="inspector-status" class="inspector-status"></span>
+    </div>
+    <h2 id="inspector-title" class="inspector-title"></h2>
+    <p id="inspector-key" class="inspector-key"></p>
+    <div id="inspector-code" class="inspector-code"></div>
+    <p id="inspector-desc" class="inspector-description"></p>
+  </aside>
+
+  <div class="stage-helper-hint" aria-hidden="true">
+    <span>1 2 3 part of the job · R read · B braille · Enter book · hold Space to answer · Y / N · Esc puts the sheet away</span>
+  </div>
+
+  <script type="module" src="presentation.js"></script>
+</body>
+</html>

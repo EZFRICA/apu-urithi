@@ -1,0 +1,11 @@
+{
+  "name": "Urithi",
+  "short_name": "Urithi",
+  "description": "Learn what a guardian taught, the way you need it.",
+  "start_url": "/learn/",
+  "scope": "/learn/",
+  "display": "standalone",
+  "background_color": "#14111c",
+  "theme_color": "#14111c",
+  "icons": [{"src": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%2314111c%22%2F%3E%3C%2Fsvg%3E", "sizes": "any", "type": "image/svg+xml"}]
+}

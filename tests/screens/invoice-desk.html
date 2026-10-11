@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invoice Coding Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: an accounts payable workbench. Queue on the left, the invoice in the middle, the coding form on the right, the journal underneath. Large type, so a screen captured at two frames a second stays legible. */
+:root {
+  --bg: #eef1f4; --panel: #ffffff; --ink: #18212b; --muted: #5a6776; --line: #cdd5de;
+  --accent: #1f5fa8; --accent-ink: #ffffff; --ok: #1d7a46; --ok-soft: #e1f3e8;
+  --warn: #9a5b00; --warn-soft: #fdf0d9; --bad: #b3261e; --bad-soft: #fbe3e1; --sel: #e3ecf7;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11161c; --panel: #1a2129; --ink: #e8edf2; --muted: #9aa7b5; --line: #2f3a46;
+  --accent: #6aa5ec; --accent-ink: #0d1520; --ok: #5fcf8d; --ok-soft: #173326;
+  --warn: #f0b456; --warn-soft: #3a2c12; --bad: #ff8a80; --bad-soft: #3d1c1a; --sel: #20324a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #11161c; --panel: #1a2129; --ink: #e8edf2; --muted: #9aa7b5; --line: #2f3a46;
+  --accent: #6aa5ec; --accent-ink: #0d1520; --ok: #5fcf8d; --ok-soft: #173326;
+  --warn: #f0b456; --warn-soft: #3a2c12; --bad: #ff8a80; --bad-soft: #3d1c1a; --sel: #20324a; color-scheme: dark }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 17px/1.45 var(--sans); padding-inline: 16px; padding-block: 16px 28px; }
+.wrap { max-width: 1400px; margin: 0 auto; display: grid; gap: 14px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; }
+h1 { margin: 0; font-size: 24px; font-weight: 600; text-wrap: balance; }
+.sub { color: var(--muted); font-size: 15px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.desk { display: grid; grid-template-columns: minmax(0, 270px) minmax(0, 1fr) minmax(0, 380px); gap: 14px; align-items: start; }
+@media (max-width: 1050px) { .desk { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.panel h2 { margin: 0; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+
+.queue { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.queue button { width: 100%; text-align: left; font: inherit; color: inherit; background: transparent; border: 1px solid var(--line);
+  border-radius: 6px; padding: 10px 12px; display: grid; gap: 2px; cursor: pointer; }
+.queue button[aria-current="true"] { background: var(--sel); border-color: var(--accent); }
+.queue .who { font-weight: 600; }
+.queue .meta { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 15px; }
+
+.chip { display: inline-block; font-size: 13px; font-weight: 600; letter-spacing: .03em; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+.chip.todo { background: var(--sel); color: var(--accent); }
+.chip.ok { background: var(--ok-soft); color: var(--ok); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.bad { background: var(--bad-soft); color: var(--bad); }
+
+.invoice { display: grid; gap: 14px; }
+.inv-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; }
+.inv-head .from { font-size: 22px; font-weight: 600; }
+dl.facts { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; }
+dl.facts dt { color: var(--muted); }
+dl.facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.lines { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+tfoot td { font-weight: 600; border-bottom: none; }
+
+.form { display: grid; gap: 12px; }
+.field { display: grid; gap: 4px; }
+label { font-size: 15px; font-weight: 500; }
+select, input[type="text"] { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; }
+.check { display: grid; gap: 8px; border: 1px dashed var(--line); border-radius: 6px; padding: 10px 12px; }
+.check .row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.result { font-size: 15px; }
+.result.ok { color: var(--ok); } .result.bad { color: var(--bad); } .result.warn { color: var(--warn); }
+.btn { font: inherit; font-weight: 600; border-radius: 6px; padding: 9px 14px; cursor: pointer; border: 1px solid var(--accent); background: transparent; color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.banner { border-radius: 6px; padding: 10px 12px; font-weight: 500; }
+.banner.ok { background: var(--ok-soft); color: var(--ok); }
+.banner.bad { background: var(--bad-soft); color: var(--bad); }
+.banner.warn { background: var(--warn-soft); color: var(--warn); }
+
+.journal ol { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 4px; max-height: 220px; overflow-y: auto; }
+.journal li { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 12px; font-size: 15px; }
+.journal time { color: var(--muted); font-family: var(--mono); }
+.note { color: var(--muted); font-size: 14px; }
+@media (prefers-reduced-motion: no-preference) { .flash { animation: flash .9s ease-out; } }
+@keyframes flash { from { background: var(--sel); } to { background: transparent; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Invoice Coding Desk</h1>
+      <div class="sub">Accounts payable · Northbay Components Ltd · Practice data, nothing here is posted anywhere</div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="reset" type="button">Start the practice again</button>
+    </div>
+  </header>
+
+  <div class="desk">
+    <section class="panel" aria-labelledby="q-title">
+      <h2 id="q-title">Inbox · to code</h2>
+      <ul class="queue" id="queue"></ul>
+      <p class="note">Three invoices, each with a decision in it. Work one, then pause, so the tutor can ask why.</p>
+    </section>
+
+    <section class="panel invoice" aria-labelledby="inv-title" id="invoice"></section>
+
+    <section class="panel" aria-labelledby="c-title">
+      <h2 id="c-title">Coding</h2>
+      <form class="form" id="form" autocomplete="off">
+        <div class="check">
+          <div class="row"><strong>1 · Supplier check</strong>
+            <button class="btn" type="button" id="check-supplier">Check against vendor master</button></div>
+          <div class="result" id="supplier-result" aria-live="polite">Not checked yet.</div>
+        </div>
+        <div class="check">
+          <div class="row"><strong>2 · Purchase order</strong>
+            <button class="btn" type="button" id="check-po">Match PO</button></div>
+          <div class="result" id="po-result" aria-live="polite">Not matched yet.</div>
+        </div>
+        <div class="field">
+          <label for="cost-center">3 · Cost center</label>
+          <select id="cost-center">
+            <option value="">Choose…</option>
+            <option value="CC-110">CC-110 Production line A</option>
+            <option value="CC-120">CC-120 Production line B</option>
+            <option value="CC-310">CC-310 Office and administration</option>
+            <option value="CC-420">CC-420 Maintenance</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="account">4 · GL account</label>
+          <select id="account">
+            <option value="">Choose…</option>
+            <option value="1510">1510 Machinery and equipment (capex)</option>
+            <option value="6150">6150 Repairs and maintenance (opex)</option>
+            <option value="6230">6230 Small tools under 5 000 € (opex)</option>
+            <option value="6410">6410 Office supplies (opex)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="vat">5 · VAT code</label>
+          <select id="vat">
+            <option value="">Choose…</option>
+            <option value="D20">D20 Domestic 20 %</option>
+            <option value="RC">RC Reverse charge (EU supplier)</option>
+            <option value="Z0">Z0 Exempt</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="memo">Note for the approver</label>
+          <input type="text" id="memo" placeholder="Why this coding, in a few words">
+        </div>
+        <div id="banner" class="banner" hidden></div>
+        <div class="actions">
+          <button class="btn" type="button" id="hold">Put on hold</button>
+          <button class="btn primary" type="submit" id="post">Post invoice</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <section class="panel journal" aria-labelledby="j-title">
+    <h2 id="j-title">Journal · what was done</h2>
+    <ol id="journal" aria-live="polite"></ol>
+  </section>
+</div>
+
+<script>
+const INVOICES = [
+  { id: "INV-2026-0418", from: "Lindqvist Tooling AB", country: "Sweden", vat: "SE556677889901", date: "2 Oct 2026", due: "1 Nov 2026",
+    iban: "SE45 5000 0000 0583 9825 7466", masterIban: "SE45 5000 0000 0583 9825 7466", po: "PO-88213", poOk: true,
+    lines: [["CNC spindle, model LT-400, installed", 1, 6200.00], ["Delivery and installation", 1, 450.00]],
+    hint: "Equipment over 5 000 €, from an EU supplier." },
+  { id: "INV-2026-0421", from: "Novak Precision s.r.o.", country: "Czechia", vat: "CZ27094312", date: "3 Oct 2026", due: "17 Oct 2026",
+    iban: "CZ12 0800 0000 0099 1122 3344", masterIban: "CZ65 0800 0000 1920 0014 5399", po: "PO-88190", poOk: true,
+    lines: [["Bearing set, 6204-2RS (box of 20)", 3, 184.00], ["Express freight", 1, 95.00]],
+    hint: "The bank details on the invoice are new." },
+  { id: "INV-2026-0425", from: "Papeterie du Port", country: "France", vat: "FR40123456824", date: "4 Oct 2026", due: "3 Nov 2026",
+    iban: "FR76 3000 6000 0112 3456 7890 189", masterIban: "FR76 3000 6000 0112 3456 7890 189", po: null, poOk: false,
+    lines: [["A4 paper, 80 g (5 reams)", 4, 21.50], ["Toner, black, HL-L2350", 2, 64.90]],
+    hint: "No purchase order quoted." },
+];
+const fmt = (n) => n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+const total = (inv) => inv.lines.reduce((s, [, q, p]) => s + q * p, 0);
+const $ = (id) => document.getElementById(id);
+
+let state;
+function fresh() {
+  return { current: 0, items: INVOICES.map(() => ({ status: "todo", supplier: null, po: null, cc: "", account: "", vat: "", memo: "" })) };
+}
+function load() { try { const s = JSON.parse(localStorage.getItem("invoice-desk")); if (s && s.items?.length === INVOICES.length) return s; } catch {} return fresh(); }
+function save() { try { localStorage.setItem("invoice-desk", JSON.stringify(state)); } catch {} }
+let journal = [];
+
+const STATUS = { todo: ["To code", "todo"], posted: ["Posted", "ok"], hold: ["On hold", "warn"] };
+
+function log(text) {
+  const t = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  journal.unshift([t, text]);
+  const ol = $("journal");
+  ol.replaceChildren(...journal.map(([time, what]) => { const li = document.createElement("li");
+    const tm = document.createElement("time"); tm.textContent = time; const s = document.createElement("span"); s.textContent = what;
+    li.append(tm, s); return li; }));
+  ol.firstChild?.classList.add("flash");
+}
+
+function renderQueue() {
+  $("queue").replaceChildren(...INVOICES.map((inv, i) => {
+    const li = document.createElement("li"); const b = document.createElement("button"); b.type = "button";
+    b.setAttribute("aria-current", String(i === state.current));
+    const [label, kind] = STATUS[state.items[i].status];
+    b.innerHTML = `<span class="who"></span><span class="meta"><span class="mono"></span><span class="chip ${kind}">${label}</span></span><span class="meta"><span class="mono"></span></span>`;
+    b.querySelector(".who").textContent = inv.from;
+    const monos = b.querySelectorAll(".mono"); monos[0].textContent = inv.id; monos[1].textContent = fmt(total(inv));
+    b.addEventListener("click", () => { state.current = i; save(); render(); log(`Opened ${inv.id} from ${inv.from}`); });
+    li.append(b); return li;
+  }));
+}
+
+function renderInvoice() {
+  const inv = INVOICES[state.current];
+  const el = $("invoice");
+  const rows = inv.lines.map(([d, q, p]) => `<tr><td></td><td class="num">${q}</td><td class="num">${fmt(p)}</td><td class="num">${fmt(q * p)}</td></tr>`).join("");
+  el.innerHTML = `
+    <h2 id="inv-title">Invoice</h2>
+    <div class="inv-head"><div><div class="from"></div><div class="sub"></div></div>
+      <div class="mono" style="font-size:20px">${fmt(total(inv))}</div></div>
+    <dl class="facts">
+      <dt>Invoice</dt><dd class="mono">${inv.id}</dd>
+      <dt>Dated</dt><dd>${inv.date}</dd>
+      <dt>Due</dt><dd>${inv.due}</dd>
+      <dt>VAT number</dt><dd class="mono">${inv.vat}</dd>
+      <dt>Pay to IBAN</dt><dd class="mono">${inv.iban}</dd>
+      <dt>PO quoted</dt><dd class="mono">${inv.po ?? "none"}</dd>
+    </dl>
+    <div class="lines"><table><thead><tr><th>Line</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Amount</th></tr></thead>
+      <tbody>${rows}</tbody><tfoot><tr><td colspan="3">Total before VAT</td><td class="num">${fmt(total(inv))}</td></tr></tfoot></table></div>
+    <p class="note"></p>`;
+  el.querySelector(".from").textContent = inv.from;
+  el.querySelector(".sub").textContent = inv.country;
+  el.querySelectorAll("tbody td:first-child").forEach((td, i) => (td.textContent = inv.lines[i][0]));
+  el.querySelector(".note").textContent = "Practice note: " + inv.hint;
+}
+
+function renderForm() {
+  const it = state.items[state.current];
+  const s = $("supplier-result"), p = $("po-result");
+  s.className = "result " + (it.supplier ?? ""); p.className = "result " + (it.po ?? "");
+  const inv = INVOICES[state.current];
+  s.textContent = it.supplier === "ok" ? "Supplier found, VAT number and IBAN match the vendor master."
+    : it.supplier === "bad" ? `IBAN differs from the vendor master (${inv.masterIban}). Do not pay before calling the supplier on the number on file.`
+    : "Not checked yet.";
+  p.textContent = it.po === "ok" ? `${inv.po} found, quantities and prices match.`
+    : it.po === "warn" ? "No purchase order on this invoice. Needs the budget owner's approval." : "Not matched yet.";
+  $("cost-center").value = it.cc; $("account").value = it.account; $("vat").value = it.vat; $("memo").value = it.memo;
+  const done = it.status !== "todo";
+  for (const id of ["check-supplier", "check-po", "cost-center", "account", "vat", "memo", "hold", "post"]) $(id).disabled = done;
+  const b = $("banner");
+  if (it.status === "posted") { b.hidden = false; b.className = "banner ok"; b.textContent = `Posted to ${it.account}, cost center ${it.cc}, VAT ${it.vat}.`; }
+  else if (it.status === "hold") { b.hidden = false; b.className = "banner warn"; b.textContent = "On hold. " + (it.memo || "No note given."); }
+  else b.hidden = true;
+}
+
+function render() { renderQueue(); renderInvoice(); renderForm(); }
+
+function warn(text) { const b = $("banner"); b.hidden = false; b.className = "banner bad"; b.textContent = text; }
+
+$("check-supplier").addEventListener("click", () => {
+  const inv = INVOICES[state.current], it = state.items[state.current];
+  it.supplier = inv.iban === inv.masterIban ? "ok" : "bad"; save(); renderForm();
+  log(it.supplier === "ok" ? `Supplier check passed for ${inv.from}` : `Supplier check FAILED for ${inv.from}: IBAN changed`);
+});
+$("check-po").addEventListener("click", () => {
+  const inv = INVOICES[state.current], it = state.items[state.current];
+  it.po = inv.poOk ? "ok" : "warn"; save(); renderForm();
+  log(inv.poOk ? `${inv.po} matched for ${inv.id}` : `No purchase order on ${inv.id}`);
+});
+for (const [id, key, what] of [["cost-center", "cc", "Cost center"], ["account", "account", "GL account"], ["vat", "vat", "VAT code"]]) {
+  $(id).addEventListener("change", (e) => { state.items[state.current][key] = e.target.value; save();
+    if (e.target.value) log(`${what} set to ${e.target.selectedOptions[0].textContent} on ${INVOICES[state.current].id}`); });
+}
+$("memo").addEventListener("input", (e) => { state.items[state.current].memo = e.target.value; save(); });
+$("memo").addEventListener("change", (e) => { if (e.target.value) log(`Note written: "${e.target.value}"`); });
+
+$("hold").addEventListener("click", () => {
+  const it = state.items[state.current]; it.status = "hold"; save(); render();
+  log(`${INVOICES[state.current].id} put on hold`);
+});
+$("form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const inv = INVOICES[state.current], it = state.items[state.current];
+  if (!it.supplier) return warn("Check the supplier before posting.");
+  if (!it.cc || !it.account || !it.vat) return warn("Choose a cost center, a GL account and a VAT code.");
+  it.status = "posted"; save(); render();
+  log(`${inv.id} posted: ${it.account}, ${it.cc}, VAT ${it.vat}, ${fmt(total(inv))}`);
+});
+$("reset").addEventListener("click", () => { state = fresh(); journal = []; save(); render(); log("Practice started again"); });
+
+state = load();
+render();
+log("Desk opened, three invoices to code");
+</script>
