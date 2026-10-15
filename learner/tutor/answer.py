@@ -41,7 +41,9 @@ SAID = {"en": "{guardian} said", "fr": "{guardian} a dit"}
 _SYSTEM = """You answer a learner's question using ONLY the numbered passages, which are what
 one person taught. Write at most three short sentences, in {language}. End every sentence with
 the number of the passage it rests on, in square brackets, like [1]. Do not add anything the
-passages do not say. If you quote, quote the passage exactly, inside double quotes.
+passages do not say. Write your own sentences in {language} even when the passages are in another
+language. If you quote, quote the passage exactly, inside double quotes, within a sentence of your
+own: a quotation is never the whole answer.
 A passage answers the question when it says what to do, why, or what to avoid in that case, even in
 other words. If the passages do not answer the question, reply with exactly NO_ANSWER and nothing else.
 The learner's memory, when given, is context about them only: it never decides whether the passages
@@ -98,16 +100,19 @@ def answer(turn: ValidatedTurn, *, question: str, body_id: str, allowed, store, 
     if worded and NO_ANSWER in worded:
         # Read again once before the guardian is asked: measured on 2026-10-15, a covered question (its
         # passage at 0.903) was found unanswered once in six, at temperature 0 too; an uncovered one was
-        # unanswered six times in six. Passed on only when found unanswered twice.
+        # unanswered six times in six. Passed on only when found unanswered twice. The second reading is
+        # without the learner's memory: whether the passages answer is theirs to decide. Measured live the
+        # same day, with the faster answer model: a memory naming the learner's previous question, on
+        # another knowledge, made a covered question unanswered 10 times in 10; without it, 0 in 10.
         try:
-            worded = _worded(question, citations, language, model=model, memory_context=memory_context)
+            worded = _worded(question, citations, language, model=model)
         except meter.Refused:
             return in_their_words
     if worded and NO_ANSWER in worded:
         logger.info("Passed on: the model found no answer in %d passage(s) (best %.3f), twice, in %s.",
                     len(citations), max(c["score"] for c in citations), body_id)
         return _passed_on(questions, body_id, question, language, guardian)
-    if worded and check(worded, citations):
+    if worded and check(worded, citations) and own_words(worded):
         return {"kind": "worded", "text": worded, "citations": citations, "passed_on": False}
     return {"kind": "extractive", "text": extractive(citations, language, question), "citations": citations,
             "passed_on": False}
@@ -156,6 +161,18 @@ def check(text: str, citations: list[dict]) -> bool:
     sources = " ".join(f"{c['text']} {c['quote']}" for c in citations)
     quoted = [next(part for part in found if part) for found in _QUOTED.findall(text)]
     return all(_flat(q) in _flat(sources) for q in quoted if len(q.strip()) >= 8)
+
+
+def own_words(text: str) -> bool:
+    """
+    Something said outside the quotations and the citations.
+
+    Measured live on 2026-10-15: asked in French, the answer model gave back the English passage
+    alone, quoted, 2 to 4 times in 10. A quotation alone is the guardian's words: given as such,
+    with their name in the learner's language, it is not passed off as an answer worded for them.
+    """
+    rest = _CITATION.sub(" ", _QUOTED.sub(" ", text))
+    return len(re.findall(r"[^\W\d_]{2,}", rest)) >= 2
 
 
 def extractive(citations: list[dict], language: str, question: str = "") -> str:

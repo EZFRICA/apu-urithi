@@ -230,6 +230,49 @@ def test_the_learners_memory_never_decides_whether_the_passages_answer():
     assert "never decides whether the passages" in answering._SYSTEM
 
 
+def test_a_question_found_unanswered_is_read_again_without_the_learners_memory(monkeypatch, tmp_path):
+    """Measured live on 2026-10-15: a memory naming the learner's previous question, on another knowledge,
+    made a covered question unanswered 10 times in 10 with the answer model; without it, 0 in 10."""
+    lib = store.MemoryKnowledgeStore()
+    lib.publish(community())
+    progress = Questions(str(tmp_path / "q"))
+    seen = []
+
+    def model(messages, **_):
+        seen.append(messages[-1]["content"])
+        return "NO_ANSWER" if "<memory>" in messages[-1]["content"] else "The meetup moves to the smaller room [1]."
+    monkeypatch.setattr(answering, "call_main_model", model)
+    monkeypatch.setattr(answering, "MIN_SCORE", 0.0)
+    question = "when do you move the meetup registrations"
+    result = answering.answer(_turn(monkeypatch, question), question=question, body_id=BODY, allowed=("public",),
+                              store=Reader(lib, ORG), questions=Asking(progress, ORG), guardian="Ezekias",
+                              memory_context="Current session: asking whether to write a or an before hour.")
+    assert result["kind"] == "worded" and not result["passed_on"]
+    assert "<memory>" in seen[0] and "<memory>" not in seen[1], "the second reading is the passages' alone"
+    assert progress.open_questions(ORG, BODY) == [], "not passed on"
+
+
+def test_an_answer_that_is_only_a_quotation_is_given_as_the_guardians_words(monkeypatch, tmp_path):
+    """Measured live on 2026-10-15: asked in French, the answer model gave back the English passage alone,
+    quoted, 2 to 4 times in 10, and it was shown as an answer worded in French."""
+    lib = store.MemoryKnowledgeStore()
+    lib.publish(community())
+    question = "quand déplace-t-on le meetup"
+    def model(messages, **_):   # the first passage's own words, quoted, and nothing else
+        quote = messages[-1]["content"].split("[1] ", 1)[1].split('(Ezekias: "', 1)[1].split('")\n', 1)[0]
+        return f'"{quote}" [1].'
+    monkeypatch.setattr(answering, "call_main_model", model)
+    monkeypatch.setattr(answering, "MIN_SCORE", 0.0)
+    result = answering.answer(_turn(monkeypatch, question), question=question, body_id=BODY, allowed=("public",),
+                              store=Reader(lib, ORG), questions=Asking(Questions(str(tmp_path / "q")), ORG),
+                              guardian="Ezekias", language="fr")
+    assert result["kind"] == "extractive" and result["text"].startswith("Ezekias a dit")
+    assert answering.own_words("On déplace le meetup dans la petite salle [1].")
+    assert answering.own_words('Il faut écrire « an » devant hour [1]. "The h in hour is silent" [2].')
+    assert not answering.own_words('"When fewer than ten register, we move to the smaller room" [1].')
+    assert "even when the passages are in another" in answering._SYSTEM
+
+
 def test_an_answer_needs_a_validated_turn():
     with pytest.raises(PermissionError):
         answering.answer(None, question="q", body_id=BODY, allowed=("public",), store=None,
