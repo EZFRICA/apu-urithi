@@ -342,7 +342,8 @@ def test_a_question_addressed_to_urithi_is_classified_as_ask_pupil_never_becomes
         cmd = commands.classify_command(phrase)
         assert cmd.intent == "ask_pupil", phrase
 
-    # Before anything was seen or noted, Urithi says "I have not seen that yet." and adds no step.
+    # Before anything was seen or noted, Urithi says so plainly (what it has not seen, no rule noted)
+    # and adds no step.
     r1 = client.post(
         "/api/guardian/tell",
         json={"map_id": work_map.map_id, "said": "did you see my screen?"},
@@ -350,7 +351,7 @@ def test_a_question_addressed_to_urithi_is_classified_as_ask_pupil_never_becomes
     assert r1["intent"] == "ask_pupil"
     assert r1["step"] is None
     assert r1["question"] is None
-    assert r1["answer"] == "I have not seen that yet."
+    assert r1["answer"] == "I have not seen your screen or noted any rule yet."
     assert len(get_maps().load(work_map.map_id).steps) == 0
 
     # Asking for a rule when none is noted yet says so simply and recalls the last question.

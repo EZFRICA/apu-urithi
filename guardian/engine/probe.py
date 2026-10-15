@@ -317,6 +317,23 @@ def rule_on(probe: Probe, said: str, by: str) -> Ruling:
         by=by, at=datetime.now(UTC).isoformat())
 
 
+# A label Urithi puts before the guardian's words when a step is flagged in class.
+_STEP_LABEL_RE = re.compile(r"^\s*(?:example|exemple|common mistake|erreur fr[ée]quente|comparison|comparaison)\s*:\s*",
+                            re.IGNORECASE)
+
+
+def _said_in(title: str, reason: str) -> bool:
+    """The title is the guardian's own sentence, shortened or labelled: nearly every word of it is in
+    the reason. Measured on 2026-10-10: "Step 3: Common mistake: accepting a sponsor's sales pitch...,
+    because a common mistake is accepting a sponsor's sales pitch..." read the same words twice."""
+    words = lambda text: re.findall(r"[\wÀ-ÿ'#@-]+", text.lower())  # noqa: E731
+    title_words = [w for w in words(_STEP_LABEL_RE.sub("", title)) if len(w) > 2]
+    if not title_words:
+        return False
+    reason_words = set(words(reason))
+    return sum(w in reason_words for w in title_words) / len(title_words) >= 0.8
+
+
 def teach_back(work_map: WorkMap) -> str:
     """
     The apprentice explains the process back, so the expert can say "yes, that is how it
@@ -335,7 +352,7 @@ def teach_back(work_map: WorkMap) -> str:
     for step in work_map.steps:
         # Her words, inside a sentence: "because equipment over...", not "because Equipment".
         title = step.title.rstrip(". ").removesuffix("...")
-        if step.reason.strip().lower().startswith(title.lower()):
+        if step.reason.strip().lower().startswith(title.lower()) or _said_in(step.title, step.reason):
             # Taught in conversation: the step is the sentence itself, said once.
             lines.append(say(language, "tb_step_said", n=step.number, said=step.reason.strip().rstrip(".")))
         else:
