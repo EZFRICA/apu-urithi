@@ -256,6 +256,23 @@ def test_a_refused_elevenlabs_key_is_heard_by_gemini_instead(elevenlabs):
     assert len(refused.calls) == 1 and fallback.calls[0]["model"] == config.GEMINI_TRANSCRIBE_MODEL
 
 
+def test_a_refused_key_still_hears_a_deposited_recording_cited_whole(elevenlabs):
+    """Measured live on 2026-10-15: the ElevenLabs key was refused (401) and a recording could not be
+    deposited at all, while speech in a class still fell back. Heard by the second transcriber now;
+    with no moment per word, the words are cited as the whole recording, never at unmeasured moments."""
+    recording = voice.silence()
+    refused = elevenlabs(error=ConnectionError("401 Unauthorized"))
+    fallback = FakeGemini(response=text_response("Book the venue a month ahead."))
+    voice.set_client(fallback)
+    try:
+        text, words = voice.transcribe_timed(recording, "audio/wav")
+    finally:
+        voice.set_client(None)
+    assert text == "Book the venue a month ahead." and len(refused.calls) == 1
+    assert words == [{"word": text, "start": 0.0, "end": voice._duration(recording, "audio/wav")}]
+    assert words[0]["end"] > 0
+
+
 def test_elevenlabs_reads_the_answer_as_a_playable_wav(elevenlabs):
     client = elevenlabs(content=struct.pack("<h", 7) * 24000 * 3)
 
