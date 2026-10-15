@@ -526,10 +526,11 @@ def test_two_saves_at_once_both_land(guardian, monkeypatch):
     rule = {"guardrail_id": "g-race", "when": "w", "then": "t", "quote": "q", "at": 1.0, "severity": "check"}
     _propose(work_map, {**_step("rule-g-race", "q", rules=[rule]), "kind": "rule", "origin": "rule", "guardrail_id": "g-race"})
     _propose(work_map, _step("p-race", "Two talks fill the evening."))
-    other: list = []
+    other: list = []                              # the other save's thread, then its reply apart
+    replies: list = []
 
     def reading_while_another_saves(said, **k):
-        thread = threading.Thread(target=lambda: other.append(
+        thread = threading.Thread(target=lambda: replies.append(
             routes.save_proposal(routes.SaveBody(map_id=work_map.map_id, proposal_id="p-race"))))
         thread.start()
         clock.sleep(0.3)                          # the other save runs as far as it can meanwhile
@@ -539,7 +540,11 @@ def test_two_saves_at_once_both_land(guardian, monkeypatch):
     monkeypatch.setattr(absorb, "find_guardrails", reading_while_another_saves)
     reply = client.post("/api/guardian/save", json={"map_id": work_map.map_id, "proposal_id": "rule-g-race",
                                                      "reason": "When a sponsor asks, decline."})
-    other[-1].join(5)
+    # The thread kept apart from its reply, and waited for: measured on 2026-10-15 under the load of the
+    # deliberate defects' parallel suites, 2 runs in 24 failed, the reply taken for the thread or the
+    # map read before the other save, waiting its turn on the map's lock, had landed.
+    other[0].join(60)
+    assert not other[0].is_alive() and len(replies) == 1, "the other save finished"
     after = get_maps().load(work_map.map_id)
     assert reply.status_code == 200 and after.guardrail("g-race") is not None
     assert any(s.reason == "Two talks fill the evening." for s in after.steps), "the other save is not undone"
