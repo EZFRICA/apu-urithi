@@ -86,3 +86,15 @@ Ezekias's published knowledge read; withdrawal. The first run passed 52 checks i
 Two other failures were the test's own reading of a reply. After the fixes: 58 checks in 58, 0
 server errors; the class again, 19 in 19 (87 frames). Suite 589 passed, 7 skipped; deliberate
 defects 337 in 337, in one full run.
+
+## Every component again, after the merge commits (afternoon)
+
+The same run found 56 in 58. Both failures were the learner's answer with the faster answer model:
+- **A covered question went to the guardian.** The learner's memory named their previous question,
+  on another knowledge; with it, the model found a covered question unanswered 10 times in 10, and
+  reading again with the same memory changed nothing. The second reading is now without it: 0 in 10.
+- **Asked in French, the English passage came back alone, quoted,** 2 to 4 times in 10. The answer
+  is written in the learner's language (10 in 10 after), and one with no words of its own is given
+  as the guardian's words, with their name.
+Then 58 in 58 (two misreadings of the test script fixed: "quatorze", "fourteen"), the class 19 in 19
+(93 frames). A test of two saves at once failed 2 runs in 24 under load: fixed, 0 in 32.
