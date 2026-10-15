@@ -217,10 +217,10 @@ def transcribe_timed(audio: bytes, mime_type: str = "audio/wav") -> tuple[str, l
     """
     if not audio:
         raise VoiceUnavailable("The recording is empty.")
-    if config.VOICE_STT_PROVIDER != "elevenlabs":
-        raise VoiceUnavailable("Timed transcription needs the ElevenLabs transcriber.")
     seconds = max(1.0, len(audio) / 32000)
     budget = meter().grant("transcribed_seconds", seconds)
+    if config.VOICE_STT_PROVIDER != "elevenlabs":
+        return _heard_whole(audio, mime_type, budget)
     extension = "mp3" if "mpeg" in mime_type else "wav"
     try:
         response = get_http().post(
@@ -229,16 +229,41 @@ def transcribe_timed(audio: bytes, mime_type: str = "audio/wav") -> tuple[str, l
             files={"file": (f"source.{extension}", audio, mime_type)})
         response.raise_for_status()
         payload = response.json()
-    except VoiceUnavailable:
-        raise
     except Exception as error:
-        logger.warning("Timed transcription failed: %s", error)
-        raise VoiceUnavailable(f"Transcription failed: {error}") from error
+        # Measured live on 2026-10-15: the ElevenLabs key was refused (401) and a recording could not be
+        # deposited at all, while speech in a class still fell back. Heard by the second transcriber now.
+        logger.warning("Timed transcription failed (%s); falling back to Gemini, untimed.", error)
+        return _heard_whole(audio, mime_type, budget)
     heard = float(payload.get("audio_duration_secs") or seconds)
     meter().record(budget, heard)
     words = [{"word": w["text"], "start": float(w["start"]), "end": float(w["end"])}
              for w in payload.get("words", []) if w.get("type", "word") == "word" and str(w.get("text", "")).strip()]
     return (payload.get("text") or "").strip(), words
+
+
+def _duration(audio: bytes, mime_type: str) -> float:
+    """How long a recording lasts: read from a WAV header, else estimated as the pages record."""
+    if "wav" in mime_type or audio[:4] == b"RIFF":
+        try:
+            import io
+            import wave
+
+            with wave.open(io.BytesIO(audio)) as heard:
+                return heard.getnframes() / float(heard.getframerate())
+        except (wave.Error, EOFError, ZeroDivisionError):
+            pass
+    return max(1.0, len(audio) / 32000)
+
+
+def _heard_whole(audio: bytes, mime_type: str, budget) -> tuple[str, list[dict]]:
+    """Heard by the second transcriber, which gives no moment per word: the words are cited as the whole
+    recording, from its start to its end, never at moments that were not measured."""
+    text = _transcribe_gemini(audio, mime_type).strip()
+    if not text:
+        raise VoiceUnavailable("Nothing was transcribed in this recording.")
+    length = _duration(audio, mime_type)
+    meter().record(budget, length)
+    return text, [{"word": text, "start": 0.0, "end": length}]
 
 
 def _transcript_from_response(response) -> str:

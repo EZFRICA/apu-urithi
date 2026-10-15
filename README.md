@@ -57,7 +57,7 @@ The embedding model lives in `models/` (about 240 MB) and is never downloaded at
 ```bash
 uv run pytest -q                         # offline, no key needed
 URITHI_LIVE_NEO4J=1 uv run pytest tests/shared/test_library.py -k neo4j   # the same contract, live
-uv run python scripts/mutate.py          # 285 deliberate defects in parallel copies, each must be caught
+uv run python scripts/mutate.py          # 341 deliberate defects in parallel copies, each must be caught
 ```
 
 ## What is in the box

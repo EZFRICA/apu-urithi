@@ -321,6 +321,7 @@ def _keep_screen_cite(
 
 
 @router.post("/command")
+@routes.writes_map
 def run_command(body: CommandBody, background_tasks: BackgroundTasks = None) -> dict:
     """
     P1: Understand the guardian's classroom command by intent with QUESTION_MODEL
@@ -353,6 +354,11 @@ def run_command(body: CommandBody, background_tasks: BackgroundTasks = None) -> 
         )
 
     if cmd.intent == "save":
+        # Saving is the guardian's explicit word (docs/decisions/0016), read as /tell and /answer read
+        # it, never a model's guess. Found in the review of 2026-10-14: every line said in class comes
+        # here first, and a model answering "save" wrote knowledge nobody asked to keep.
+        if not commands.has_save_cue(said):
+            return {"intent": "none"}
         return routes._save_from_voice(work_map, cmd.what)
 
     if cmd.intent == "remember":
@@ -390,6 +396,7 @@ def run_command(body: CommandBody, background_tasks: BackgroundTasks = None) -> 
                 pid = p_content.get("proposal_id") or p_block["ref"].removeprefix("proposal-")
                 memory.drop(p_block["ref"])
                 memory.drop(f"note-{pid}")
+                routes._set_aside(work_map, memory, pid, p_content)
                 get_working().save(work_map.organisation, work_map.map_id, memory)
                 title_p = str(p_content.get("title") or "")
                 msg = (
@@ -412,6 +419,7 @@ def run_command(body: CommandBody, background_tasks: BackgroundTasks = None) -> 
                     n_content = n_block.get("content") or {}
                     nid = n_content.get("note_id") or n_block["ref"].removeprefix("note-")
                     memory.drop(n_block["ref"])
+                    routes._set_aside(work_map, memory, nid, n_content)
                     get_working().save(work_map.organisation, work_map.map_id, memory)
                     title_n = str(n_content.get("title") or n_content.get("text") or "")
                     msg = (
@@ -441,7 +449,13 @@ def run_command(body: CommandBody, background_tasks: BackgroundTasks = None) -> 
             return {"intent": "forget", "forgotten": "", "steps": len(work_map.steps), "noted": msg, **routes._voiced(msg)}
         captured.pop()
         removed = work_map.steps.pop()
-        gone_rails = set(removed.guardrail_ids or ())
+        # Only the rules said with this step (the same moment) and held by no other step. A rule saved
+        # on its own is attached to the step before it, and stays when that step is forgotten (found in
+        # the second review of 2026-10-14); unsure, a rule stays rather than go.
+        still_held = {gid for s in work_map.steps for gid in s.guardrail_ids}
+        said_with = {g.guardrail_id for g in work_map.guardrails
+                     if g.guardrail_id in (removed.guardrail_ids or ()) and removed.said_at and g.said_at == removed.said_at}
+        gone_rails = said_with - still_held
         if gone_rails:
             work_map.guardrails = [g for g in work_map.guardrails if g.guardrail_id not in gone_rails]
             work_map.rulings = [r for r in work_map.rulings if r.guardrail_id not in gone_rails]
@@ -458,6 +472,18 @@ def run_command(body: CommandBody, background_tasks: BackgroundTasks = None) -> 
         memory.drop(f"example-{removed.number}")
         memory.drop(f"mistake-{removed.number}")
         memory.drop(f"compare-{removed.number}")
+        # The note it was saved from goes aside too. Measured live on 2026-10-14: the step forgotten
+        # came straight back as a proposal, its note judged again once the step was gone.
+        saved_from = str(((memory.find(f"saved-{removed.step_id}") or {}).get("content") or {}).get("note_id") or "")
+        memory.drop(f"saved-{removed.step_id}")
+        for n_block in memory.of_kind("recent", "note-"):
+            n_content = n_block.get("content") or {}
+            n_id = str(n_content.get("note_id") or n_block["ref"].removeprefix("note-"))
+            if n_id == saved_from or str(n_content.get("text") or "").strip() == removed.reason.strip():
+                nid = n_content.get("note_id") or n_block["ref"].removeprefix("note-")
+                memory.drop(n_block["ref"])
+                memory.drop(f"proposal-{nid}")
+                routes._set_aside(work_map, memory, nid, n_content)
         routes._clear_teach_back(work_map, memory)
         get_working().save(work_map.organisation, work_map.map_id, memory)
         msg = (

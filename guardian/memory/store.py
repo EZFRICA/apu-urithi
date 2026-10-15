@@ -54,6 +54,15 @@ class InProcessSessions:
 
 _maps: MapStore | None = None
 _sessions: SessionStore | None = None
+_map_locks: dict[str, threading.RLock] = {}
+_map_locks_guard = threading.Lock()
+
+
+def map_lock(map_id: str) -> threading.RLock:
+    """One writer of a map at a time in this process, held from loading the map to saving it; the map
+    store's version refuses a stale save from another process (guardian.engine.workmap.MapChanged)."""
+    with _map_locks_guard:
+        return _map_locks.setdefault(map_id, threading.RLock())
 
 
 def get_maps() -> MapStore:

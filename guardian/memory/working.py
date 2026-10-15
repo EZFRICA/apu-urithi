@@ -10,6 +10,16 @@ head to tail; a block touched again moves to the front of its kind; past a bound
 recent blocks are let go first. One list per (organisation, map): nothing of one knowledge or one
 organisation is read in another.
 
+Two requests may hold the same list at once: a class frame is being judged (seconds of model calls)
+while the guardian saves, ignores or says something. Measured in the review of 2026-10-14: the
+later save wrote back the whole list it had loaded, and a proposal just saved came back as
+waiting, an ignored one was offered again, a note was lost. So a memory keeps what it changed,
+and a store that finds the list written meanwhile replays those changes on the newer list. What
+is only recomputed from the rest (proposals judged again from the notes) is marked derived and
+dropped only when what it was judged from (notes, proposals, rules, what was set aside) changed
+meanwhile: a frame noting what it saw does not undo a proposal (measured in the second review the
+same day). A list deleted meanwhile is not written again.
+
 Kinds:  recent    what was just said or asked                 at the head
         open      a question waiting on the guardian, a case   after the head
         retained  what Urithi keeps for the whole knowledge    before the tail
@@ -18,13 +28,23 @@ Kinds:  recent    what was just said or asked                 at the head
 import json
 import os
 import sqlite3
+import threading
 import uuid
+from contextlib import contextmanager
 from typing import Protocol
 
 from guardian import config
 
 KINDS = ("recent", "open", "retained")
 MAX_BLOCKS = 200
+JUDGED_FROM = ("note-", "proposal-", "ignored-", "rule-")   # what derived changes are judged from
+
+
+def _judged_from(data: dict | None) -> str:
+    """What derived changes were computed from, as one comparable string."""
+    blocks = (data or {}).get("blocks") or {}
+    kept = {b["ref"]: b.get("content") for b in blocks.values() if b["ref"].startswith(JUDGED_FROM)}
+    return json.dumps(kept, sort_keys=True, ensure_ascii=False)
 
 
 class WorkingMemory:
@@ -32,6 +52,29 @@ class WorkingMemory:
 
     def __init__(self, data: dict | None = None):
         self.data = data or {"head": None, "tail": None, "blocks": {}}
+        self.base_version = int(self.data.get("version", 0))
+        self.base_judged_from = _judged_from(self.data)
+        self.journal: list[tuple] = []
+        self._derived = 0
+
+    @contextmanager
+    def derived(self):
+        """Changes recomputed from the rest of the list: kept only when nothing was written meanwhile."""
+        self._derived += 1
+        try:
+            yield self
+        finally:
+            self._derived -= 1
+
+    def replay(self, journal: list[tuple], *, derived: bool = False) -> None:
+        """Another request's changes, on this newer list; what was derived only when asked."""
+        for op in journal:
+            if op[-1] and not derived:
+                continue
+            if op[0] == "put":
+                self.put(op[1], op[2], json.loads(json.dumps(op[3])))
+            else:
+                self.drop(op[1])
 
     @property
     def blocks(self) -> dict:
@@ -103,9 +146,14 @@ class WorkingMemory:
         self.blocks[block["id"]] = block
         self._place(block)
         self._bound()
+        self.journal.append(("put", kind, ref, content, bool(self._derived)))
         return block
 
     def drop(self, ref: str) -> bool:
+        self.journal.append(("drop", ref, bool(self._derived)))
+        return self._drop(ref)
+
+    def _drop(self, ref: str) -> bool:
         block = self.find(ref)
         if not block:
             return False
@@ -122,7 +170,7 @@ class WorkingMemory:
             recent = self.of_kind("recent")
             if not recent:
                 break
-            self.drop(recent[-1]["ref"])
+            self._drop(recent[-1]["ref"])
 
 
 class WorkingMemories(Protocol):
@@ -151,13 +199,40 @@ class SqliteWorkingMemories:
         return WorkingMemory(json.loads(row[0]) if row else None)
 
     def save(self, organisation: str, map_id: str, memory: WorkingMemory) -> None:
-        with self._connect() as db:
+        """Written as loaded when nobody wrote meanwhile; otherwise its changes on the newer list."""
+        with _lock_for(organisation, map_id), self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT data FROM memories WHERE organisation = ? AND map_id = ?",
+                             (organisation, map_id)).fetchone()
+            stored = json.loads(row[0]) if row else None
+            if stored is None and memory.base_version > 0:
+                memory.journal = []          # the list was deleted meanwhile, with its knowledge
+                return
+            version = int((stored or {}).get("version", 0))
+            if stored is not None and version != memory.base_version:
+                newer = WorkingMemory(stored)
+                newer.replay(memory.journal, derived=_judged_from(stored) == memory.base_judged_from)
+                memory.data = newer.data
+            memory.data["version"] = version + 1
             db.execute("INSERT OR REPLACE INTO memories VALUES (?, ?, ?)",
                        (organisation, map_id, json.dumps(memory.data, ensure_ascii=False)))
+        memory.base_version = memory.data["version"]
+        memory.base_judged_from = _judged_from(memory.data)
+        memory.journal = []
 
     def forget(self, organisation: str, map_id: str) -> None:
         with self._connect() as db:
             db.execute("DELETE FROM memories WHERE organisation = ? AND map_id = ?", (organisation, map_id))
+
+
+_locks: dict[tuple[str, str], threading.Lock] = {}
+_locks_guard = threading.Lock()
+
+
+def _lock_for(organisation: str, map_id: str) -> threading.Lock:
+    """One writer at a time per list in this process; BEGIN IMMEDIATE covers other processes."""
+    with _locks_guard:
+        return _locks.setdefault((organisation, map_id), threading.Lock())
 
 
 _memories: WorkingMemories | None = None

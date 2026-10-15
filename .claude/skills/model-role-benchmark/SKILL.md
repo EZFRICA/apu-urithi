@@ -16,7 +16,8 @@ because it was measured in that exact role, against the others, here.
 | Rule extraction | rules stated and only those, no duplicates, `then` readable after "you" or "tu" |
 | Reading a yes or a no | agreement with the guardian's intent on a fixed set of answers |
 | The input guard | on topic, off topic, distress, injection: every case, several runs |
-| The faithful answer | cites every sentence, quotes verbatim, says NO_ANSWER when it should |
+| The faithful answer | cites every sentence, quotes verbatim, says NO_ANSWER when it should and only then: a covered question asked six times, after an uncovered one too |
+| The pupil's answer | from the facts only: names the rule when one is saved, says none is noted when none is, whatever the question's words |
 | The source judge | relevant or not, agrees or not, against hand-labelled pages |
 | Vision | what changed between two frames |
 | Speech in and out | words right, latency, length of audio against text |

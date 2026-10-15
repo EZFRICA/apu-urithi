@@ -238,7 +238,9 @@ const ANSWER_QUIET_MS = 1800;
 const REMEMBER_ANYWHERE = /(?:(?<![\wÀ-ÿ])(?:you|tu|vous)(?![\wÀ-ÿ])[^.?!]{0,25}?|(?<![\wÀ-ÿ])(?:want|need|wanna|like)\s+to\s+|(?<![\wÀ-ÿ])please[\s,]+|^[\s,]*(?:(?:ok(?:ay)?|so|alors|bon|euh)[\s,]+)*)(?:remember|keep|save|note|reten\w*|retien\w*|gard(?:e|es|ez|er)|sauvegard(?:e|es|ez|er)|not(?:e|es|ez|er))(?![\wÀ-ÿ])[^.?!]{0,40}?(?<![\wÀ-ÿ])(?:this|that|these|the information|information|informations|the screen|ça|ca|ceci|cela|cette information|ces informations|l'information|les informations|cet écran|l'écran)(?![\wÀ-ÿ])/i;
 const REMEMBER = /^\s*(?:please\s+)?(?:remember|keep in mind|retiens|retenez|garde en m[ée]moire|note)\b(?:\s+(?:this|that|ceci|ça|ca|cela|cet)\b)?(?:\s+(?:screen|écran|ecran)\b)?[\s,.:;!-]*/i;
 const ASK_PUPIL = /\b(?:did|do|can|could|have)\s+you(?:\s*,\s*(?:uh+|um+|euh+)\s*,\s*|\s+)(?:see|seen|read|catch|caught|notice|get|give|tell|show|remind|remember\s+me)\b|\b(?:did|do|have)\s+you\s+(?:keep|kept)\b|\bwhat\s+(?:is\s+the\s+)?information\s+(?:do\s+)?you\s+(?:keep|kept|have|see|saw)\b|\b(?:give|tell|remind)\s+me\s+(?:the\s+(?:rule|role|room|question|step|information)|information\s+about)\b|\bwhat\s+(?:is\s+the\s+|rule\b|role\b|room\b|question\b)[^.?!]{0,45}\byou(?:'re|\s+are)?\s+(?:talk(?:ing)?|ask(?:ing)?|speak(?:ing)?)\s+about\b|\bneed\s+the\s+(?:rule|role|room|whole)\s+(?:you\s+|to\s+)?talk(?:ing)?\s+about\b|\bi\s+said\s+[\w'-]+\s*,\s*not\s+[\w'-]+\b|\bwhat\s+would\s+you\s+(?:save|keep|propose)\b|\bque\s+(?:garderais|proposerais|sauvegarderais)-tu\b|\b(?:as-tu|vois-tu|quelle\s+r[èe]gle|donne-moi|rappelle-moi|j'ai\s+dit)\b/i;
-const SAVE_COMMAND = /^\s*(?:(?:please|ok(?:ay)?|so|alors|bon|s'il\s+te\s+pla[iî]t)[\s,]+)*(?:save|keep|garde|gardes|gardez|sauvegarde|sauvegardez|enregistre|enregistrez)(?:\s+(?:this|that|it|the\s+proposal|the\s+step|as\s+a\s+step|ça|ca|ceci|cela|la\s+proposition|cette\s+étape|l'étape))?\s*[.?!]*$/i;
+// Plain or polite ("can you save this?", "peux-tu garder ça ?"), as the server reads it: measured in
+// the second review of 2026-10-14, a polite save went to "remember this screen" and dropped the question.
+const SAVE_COMMAND = /^\s*(?:(?:please|ok(?:ay)?|so|alors|bon|s'il\s+te\s+pla[iî]t)[\s,]+)*(?:(?:can|could|would|will)\s+you\s+(?:please\s+)?|(?:peux-tu|pourrais-tu|tu\s+peux|est-ce\s+que\s+tu\s+peux)\s+)?(?:save|keep|garde|gardes|gardez|garder|sauvegarde|sauvegarder|sauvegardez|enregistre|enregistrer|enregistrez)(?:\s+(?:this|that|it|this\s+one|that\s+one|the\s+proposal|the\s+step|the\s+rule|as\s+a\s+step|ça|ca|ceci|cela|la\s+proposition|la\s+règle|cette\s+étape|l'étape))?(?:[\s,]+(?:please|for\s+me|s'il\s+te\s+pla[iî]t|pour\s+moi))?\s*[.?!]*$/i;
 const PASS_QUESTION = /^\s*(?:pass|skip(?:\s+it|\s+this)?|next(?:\s+question)?|passe|passons|suivante?)\s*[.?!]*$/i;
 const ANSWER_WAIT_MS = 12000;
 const store = {
@@ -634,18 +636,24 @@ class Teach {
     const asked = this.classroom.pending;
     this.classroom.pending = null;
     const reply = await this.classroom.remember(words);
-    if (reply.step && asked && !this.classroom.pending) {
-      this.classroom.pending = asked;
-      $("class-question").hidden = false;
-      $("class-question").textContent = asked.question;
-      $("class-status").textContent = this.t("stillAsking");
-      return reply;
+    if (reply.intent === "save" || reply.intent === "ask_pupil") {
+      // Said back like any other save or answer, not left silent.
+      const text = reply.noted || reply.answer || "";
+      if (text) {
+        this.line("apprentice", text);
+        this.say(text);
+        $("class-status").textContent = text;
+        this.voice(reply.audio, reply.words, text);
+      }
+      await this.refreshMap();
     }
-    if (reply.proposal && asked && !this.classroom.pending) {
+    // The question still waits unless this reply asked another: the server still holds it, and a page
+    // that forgets it leaves the class silent (found in the second review of 2026-10-14, after a save).
+    if (asked && !this.classroom.pending && !reply.question) {
       this.classroom.pending = asked;
       $("class-question").hidden = false;
       $("class-question").textContent = asked.question;
-      $("class-status").textContent = this.t("stillAsking");
+      if (!reply.noted && !reply.answer) $("class-status").textContent = this.t("stillAsking");
       return reply;
     }
     $("class-status").textContent = this.t(reply.error ? "noScreen" : "classWaits");
@@ -951,6 +959,12 @@ class Teach {
         }
         for (const g of (reply.guardrails?.length ? reply.guardrails : reply.proposal?.rules) || []) this.note("rule", `${g.when} -> ${g.then}`);
         $("class-status").textContent = reply.question || reply.answer || reply.noted || this.t("classWaits");
+        if (reply.question) {
+          // A follow-up waits like any class question: shown with Pass, answered next.
+          this.classroom.onQuestion(reply);
+          await this.refreshMap();
+          return reply;
+        }
       }
       if (reply.step && (!$("confirm").hidden || !$("publish").hidden)) {
         // The server unconfirmed the map; the page says so instead of offering a publish that fails.

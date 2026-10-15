@@ -46,12 +46,16 @@ models/
 # ── Not shipped: a helper that needs a key and is of no use to a user ────────
 scripts/list_gemini_models.py
 
+# ── Not shipped: the owner's palabre work, kept out of this repository ────────
+palabre/
+
 # ── Editors and OS ───────────────────────────────────────────────────────────
 .DS_Store
 .idea/
 .vscode/
 
-# Present only while scripts/mutate.py holds a deliberate defect in the tree.
+# The lock an older scripts/mutate.py held while a deliberate defect was in the tree; it now
+# works on copies, but a suite still refuses to run beside the lock (tests/conftest.py).
 .mutating
 
 # ── Working notes ────────────────────────────────────────────────────────────

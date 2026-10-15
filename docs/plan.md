@@ -11,7 +11,7 @@ this repository says so.
 |---|---|
 | Packages | `apu/` (shared core), `library/`, `exchange/`, `guardian/`, `learner/`, each side built like `apu` |
 | Boundary | the two sides never import each other; only the guardian writes to the library |
-| States | draft (working memory), saved (validated, the guardian's only), published (with access) |
+| States | notes and proposals (working memory); saved by the guardian's word, a draft until validated (0016); validated, the guardian's only; published (with access) |
 | Prerequisites | reminded, not enforced |
 | Classroom mode | a full-screen mode of the guardian's page; Urithi the only pupil at first |
 | Learner's page | the current web page, offline and installable, with the school tutor's features; not Streamlit |
@@ -25,9 +25,7 @@ this repository says so.
 | Quotas, cost | quotas per person and role; ceilings per request, person, organisation, platform; set by the platform, narrowed by each organisation; stepping down before refusing |
 | Vocabulary | *knowledge*, never *course* or *lesson* |
 
-The completed foundation steps are in [plan-done.md](plan-done.md) (steps 0 to 2) and [plan-steps-3-to-8.md](plan-steps-3-to-8.md) (steps 3 to 8).
-
-
+The completed foundation steps are in [plan-done.md](plan-done.md) (steps 0 to 2) and [plan-steps-3-to-8.md](plan-steps-3-to-8.md) (steps 3 to 8). The guardian's expert pupil (P1 to P3) is done and measured in [measured-class-p1-p3-and-v1.md](measured-class-p1-p3-and-v1.md).
 
 ## Later, each a project of its own
 

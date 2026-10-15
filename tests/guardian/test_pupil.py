@@ -326,7 +326,7 @@ def test_a_whole_class_without_a_save_leaves_the_knowledge_empty(
 
     by_said = dict(replies)
     assert "Dockside Room B" in by_said["did you see my screen?"]["answer"]
-    assert "no rule has been noted so far" in by_said["what rule are you talking about?"]["answer"]
+    assert "no rule is noted yet" in by_said["what rule are you talking about?"]["answer"]
     assert "venue" in by_said["what would you save?"]["answer"].lower()
 
     view = client.get(f"/api/guardian/map/{work_map.map_id}").json()

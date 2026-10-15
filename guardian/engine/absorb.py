@@ -424,6 +424,9 @@ def _fallback_proposals(
     return out
 
 
+_NO_CHOICE = {"none", "null", "nil", "n/a", "na", "no", "-", "aucun", "aucune", "rien"}
+
+
 def judge_proposals(
     work_map,
     notes: list[dict] | tuple[dict, ...],
@@ -515,6 +518,10 @@ def judge_proposals(
             parsed = jsonish.loads(raw)
             if isinstance(parsed, dict):
                 chosen_id = str(parsed.get("step_note_id") or "").strip()
+                # "none", "null" and the like say no step, as "" does. Found in the review of
+                # 2026-10-14: read as an id, "none" proposed the latest note anyway.
+                if chosen_id.lower() in _NO_CHOICE:
+                    chosen_id = ""
                 by_id = {str(n.get("note_id") or ""): n for n in candidate_notes}
                 chosen_note = (
                     (by_id.get(chosen_id) or (candidate_notes[-1] if candidate_notes else None))

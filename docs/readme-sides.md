@@ -4,10 +4,11 @@ Part of [README.md](../README.md).
 
 ## What the guardian does
 
-**Talks.** Each sentence becomes a step, in the guardian's words; any limit in it ("if fewer
-than ten people have registered three days before, I move the meetup") becomes a rule a
-machine can check. Urithi answers with the gap it needs closed next, chosen by a ledger, not
-by a model's curiosity: where does that stop, who do you ask when it does not cover the case.
+**Talks, and saves what counts.** Urithi notes everything and proposes, in the guardian's own
+words, a step or a rule ("if fewer than ten people have registered three days before, I move the
+meetup" becomes a rule a machine can check); nothing is knowledge until the guardian says "save
+this" (decision 0016). It asks for the gap it needs closed next: where does that stop, who do
+you ask when it does not cover the case; asked back, it answers from what it saw and noted.
 
 **In English or in French.** The guardian says which when they start, and the apprentice
 asks, tests and reads back in that language; a French rule stays in French ("quand moins de
@@ -38,7 +39,7 @@ switches (microphone off until turned on, listening after a question, vision). A
 after a change, the expert pupil judges what a learner would miss (`importance` 1 to 5, with
 its `why` kept in the notes and memory) and asks only above the guardian's threshold; a passed
 question raises that threshold in the guardian's fundamental memory across knowledges, and
-silent mode defers questions to the debrief. Five spoken or typed commands (`remember`,
+silent mode defers questions to the debrief. Spoken or typed commands (`save`, `remember`,
 `example`, `mistake`, `compare`, `forget`) work with a pointed screen region; on a camera,
 handheld sway is filtered, other people's faces are blurred while the guardian's stays clear,
 and numbers or foreign scripts read from a board wait for the guardian's confirmation.

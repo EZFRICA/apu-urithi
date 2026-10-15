@@ -2,8 +2,9 @@
 
 Pages made to be shared on screen during a real-condition test of the classroom mode
 (`guardian/ui/teach/classroom.js`): a guardian works on one of them while Urithi watches, asks
-why at the pauses, and keeps what it saw as draft steps. Nothing here is served by Urithi,
-read by pytest, or sent anywhere; each page keeps its own state in the browser only.
+why at the pauses, and notes what it saw and proposes it; the guardian saves what counts
+(decision 0016). Nothing here is served by Urithi, read by pytest, or sent anywhere; each page
+keeps its own state in the browser only.
 
 | Page | Knowledge it goes with | The decisions in it |
 | --- | --- | --- |

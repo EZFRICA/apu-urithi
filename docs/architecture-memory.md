@@ -31,28 +31,37 @@ them. Nothing else crosses.
 Both sides use the shared memory management unit in `apu/mmu/` (decision 0015), keeping their
 stores apart per organisation and per person:
 - **L1 (`L1Cache`):** in-memory cache with a lifetime per block type (`temporary` 5 min,
-  `project`/`course` 30 min, `fundamental` 2 h) and bounded capacity (`10` entries).
+  `knowledge` 10 min, `fundamental` 30 min, any other type 5 min) and bounded capacity (`256`
+  entries, the least recently used let go first).
 - **L2 (`DoublyLinkedList`):** typed memory blocks (`temporary` at the head, `project` or
-  `course` right after the head, `fundamental` right before the tail), plus `3` non-evictable
-  fixed blocks per side. Beyond the cap (`50`), the least recently used block is paged out to L3.
+  `knowledge` right after the head, `fundamental` right before the tail), plus `4` non-evictable
+  fixed blocks per side. Beyond the cap of dynamic blocks (`5`, `URITHI_MAX_DYNAMIC_BLOCKS`), the
+  least recently used one is paged out to L3.
 - **L3 (`L3VectorStore`, `LanceDBDriver`):** long-term vector store using the local ONNX
   embedder (`384` dims). Search checks L1, L2, then L3, promoting the single best match to the
-  head (`BMJ`), paging in L3 hits (`page_in_from_l3`), and writing back via `apu/meter.py`.
+  head (`BMJ`) and paging in L3 hits (`page_in_from_l3`); what a turn leaves is written back by
+  the extraction model, under the meter's budget (`apu/meter.py`).
 
-**The guardian's memories (`guardian/memory/`):** working memory [C] holds the classroom
-(`temporary`), the knowledge being taught (`project`: said, seen, kept, deferred questions),
-and the guardian's profile (`fundamental` and fixed `teaching_preferences`, keeping their
-learned question threshold across knowledges). **Persistent:** what the guardian validated.
+**The guardian's memories (`guardian/memory/`):** the working memory [C], one per knowledge
+(`working.py`), holds what Urithi noted in class: notes, proposals waiting, the question waiting,
+rules noted, what was set aside. Two requests may hold it at once (a frame judged while the guardian
+saves); each keeps the changes it made, and a save finding the list written meanwhile replays them on
+the newer one, so neither undoes the other. The guardian's MMU (`mmu.py`) holds the class
+(`temporary`), the knowledge being taught (`project`) and the guardian's profile (`fundamental`,
+with `teaching_preferences` keeping their learned question threshold across knowledges).
+**Persistent:** the map, written only by the guardian's explicit save (decision 0016), one writer at
+a time per map, a save from an older copy refused.
 
 ```
- draft (working memory) ──validate──▶ saved (persistent, the guardian's only)
-                                          ──publish, with access levels──▶ published [B]
+ notes, proposals (working memory) ──"save this"──▶ the map, a draft part
+     ──validate (teach-back heard)──▶ validated ──publish, with access levels──▶ published [B]
 ```
 
 Validating needs the teach-back heard and confirmed. Publishing chooses who may learn each
 part. Anything taught after validation sends the knowledge back to draft for that part.
 
-**The learner's memories (`learner/memory/`):** fixed blocks (`learner_profile`,
-`active_course`, `session_scratchpad`) and dynamic `temporary` (session), `course` (the open
-knowledge), and `fundamental` (preferences, what they found hard) blocks read by the tutor;
-plus **persistent progress** (FSRS reviews, notebook, exams) on the device and on the server.
+**The learner's memories (`learner/memory/`):** fixed blocks (`current_session`,
+`active_knowledge`, `learning_preferences`, `learner_profile`) and dynamic `temporary` (session),
+`knowledge` (the open knowledge), and `fundamental` (preferences, what they found hard) blocks read
+by the tutor; plus **persistent progress** (FSRS reviews, notebook, exams) on the device and on the
+server.

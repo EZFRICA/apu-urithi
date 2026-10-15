@@ -76,24 +76,24 @@ PUPIL_ANSWER_SYSTEM = (
     "- Answer the guardian's specific question directly using what you actually know.\n"
     "- Never invent a rule, a step, a role, a screen detail, or a number that is not written in the "
     "facts below.\n"
-    "- If the guardian asks what rule or role you are talking about and 'Rules already noted or saved' "
-    "is 'none', state simply that you have not cited or noted any rule yet, mention what you did "
-    "note or see if relevant, and remind them of your last question.\n"
-    "- If the guardian corrects a misheard word (for example 'I said rule, not room'), acknowledge "
-    "the correction directly and state whether any rule is noted yet and what your question was.\n"
-    "- Speech recognition may write 'my deck' or 'organized desk' when the guardian means their "
-    "screen or the Organiser's Desk, and may write 'role', 'room', or 'whole to talk about' when "
-    "the guardian means 'rule you talk about': if no rule is noted yet, say simply that no rule "
-    "has been cited or noted yet, mention what you did see or note if relevant, and recall your "
-    "last question.\n"
+    "- The facts decide what you say: name a rule when 'Rules already noted or saved' lists one, and say "
+    "that no rule is noted only when it says 'none'; the same for what you saw and for your last question, "
+    "which you mention only when there is one.\n"
+    "- Speech recognition may mishear the guardian: when the question makes no sense as written, answer "
+    "what they most likely meant given the facts; when they correct a word, acknowledge it and answer the "
+    "corrected question from the facts.\n"
     "- Never repeat any sentence from 'Previous answers already given' word for word: tailor your "
     "answer to the exact question the guardian just asked.\n"
-    "- If the guardian asks about the screen and nothing was seen on the screen yet, or asks "
-    "for anything not present in the facts below, say \"I have not seen that yet.\" "
-    '(or in French: "Je n\'ai pas encore vu cela.").\n'
+    "- When the facts say 'none' for what is asked, say so plainly (\"No rule is noted yet.\", \"I have "
+    "not seen your screen yet.\"). When the question names something the facts do not hold at all, say "
+    "\"I have not seen that yet\" (in French: \"Je n'ai pas encore vu cela\") and add, in a few words, the "
+    "closest thing the facts do hold.\n"
     "- Never read a note back whole: name it in a few of its words.\n"
     "- Do not ask a new question back."
 )
+# Found in the review of 2026-10-15: this prompt carried the cases met live ("I said rule, not room",
+# "role", "my deck", "whole to talk about") and, with two rules saved, answered "I said rule, not room."
+# with "I have not cited or noted any rule yet". The facts decide now, not a list of cases.
 
 
 def _spoken_length(sentence: str, words: int = 25) -> str:
@@ -119,13 +119,18 @@ _DISFLUENCY_RE = re.compile(
 )
 _STUTTER_RE = re.compile(r"\b(\w+)(?:\s*,\s*|\s+)\1\b", re.IGNORECASE)
 
+# A request to save, plain or polite: "save this", "can you save this?", "peux-tu garder ça ?".
+# Measured in the second review of 2026-10-14: once /command needed these words, "Can you save
+# this?" was no longer a save and became a note.
 _SAVE_RE = re.compile(
     r"^\s*(?:please\s+|ok(?:ay)?[\s,]+|yes[\s,]+|oui[\s,]+|bon[\s,]+|alors[\s,]+|euh[\s,]+)*"
+    r"(?:(?:can|could|would|will)\s+you\s+(?:please\s+)?|"
+    r"(?:peux-tu|pourrais-tu|tu\s+peux|est-ce\s+que\s+tu\s+peux)\s+)?"
     r"(?:"
     r"save(?:\s*[:,-]\s*(?P<what_colon>[^.?!]+)|\s+(?P<what_en>(?:this|that|it|the|a|an|step|rule|case|proposal|note|one|first|second|third|last|latest|#?\d)\b[^.?!]*)?)?"
-    r"|(?:sauvegard(?:e|es|er|ez)|enregistr(?:e|es|er|ez))"
+    r"|(?:sauvegard(?:er|ez|es|e)|enregistr(?:er|ez|es|e))\b"
     r"(?:\s*[:,-]?\s*(?P<what_fr>[^.?!]*))?"
-    r"|gard(?:e|es|ez)\s+(?P<what_garde>(?:ça|ca|ceci|cela|(?:la|cette)\s+r[èe]gle|(?:l'|cette\s+)[ée]tape|(?:la|cette)\s+proposition)[^.?!]*)"
+    r"|gard(?:e|es|ez|er)\s+(?P<what_garde>(?:ça|ca|ceci|cela|(?:la|cette)\s+r[èe]gle|(?:l'|cette\s+)[ée]tape|(?:la|cette)\s+proposition)[^.?!]*)"
     r")\s*[.?!]*\s*$",
     re.IGNORECASE,
 )
@@ -218,6 +223,9 @@ def _clean_speech(said: str) -> str:
     return re.sub(r"\s{2,}", " ", cleaned).strip()
 
 
+_POLITE_TAIL_RE = re.compile(r"(?:[\s,]+(?:please|for\s+me|s'il\s+te\s+pla[iî]t|pour\s+moi))+$", re.IGNORECASE)
+
+
 def _extract_save_what(match: re.Match) -> str:
     raw = (
         match.groupdict().get("what_colon")
@@ -225,7 +233,8 @@ def _extract_save_what(match: re.Match) -> str:
         or match.groupdict().get("what_fr")
         or match.groupdict().get("what_garde")
         or ""
-    ).strip(" ,.:;-")
+    ).strip(" ,.:;-?!")
+    raw = _POLITE_TAIL_RE.sub("", raw).strip(" ,.:;-?!")
     if not raw or _GENERIC_SAVE_WHAT_RE.match(raw):
         return ""
     return raw
@@ -328,8 +337,10 @@ def classify_command(said: str, language: str = "en") -> Command:
             return _fallback(text)
         what = str(parsed.get("what", "")).strip()
         m_save = _SAVE_RE.match(text) or _SAVE_RE.match(cleaned)
-        if m_save and intent in ("none", "remember", "save"):
-            return Command(intent="save", what=_extract_save_what(m_save) or ("" if _GENERIC_SAVE_WHAT_RE.match(what) else what))
+        if m_save:   # the guardian's explicit words decide, whatever the model read
+            # What to save is named by the guardian's own words; "save this" names nothing, and the
+            # model's reading of "this" is not theirs (review of 2026-10-14).
+            return Command(intent="save", what=_extract_save_what(m_save))
         if intent in ("none", "remember") and (_ASK_PUPIL_RE.search(text) or _ASK_PUPIL_RE.search(cleaned)):
             return Command(intent="ask_pupil", what=what or text)
         return Command(intent=intent, what=what)
@@ -351,106 +362,36 @@ def is_save_preview_question(said: str) -> bool:
     )
 
 
-def _contextual_rule_answer(
-    lang: str,
-    said: str,
-    *,
-    seen_parts: list[str],
-    last_q: str,
-    note_texts: list[str],
-    rules_parts: list[str],
-) -> str:
+_NOTHING_KNOWN = {"en": "I have not seen your screen or noted any rule yet.",
+                  "fr": "Je n'ai encore vu ton écran ni noté aucune règle."}
+
+
+def _what_i_know(lang: str, *, seen_parts: list[str], rules_parts: list[str], last_q: str,
+                 note_texts: list[str]) -> str:
+    """With no model to word an answer, what Urithi knows, said shortly and the same for any question:
+    what it saw, the rule noted (or that none is), its last question. Found in the review of
+    2026-10-15: the answers were picked by lists of words ("room", "role", "whole", "give me"), one per
+    case met live, and a fluent answer from the model was refused when it lacked the listed words."""
     french = lang == "fr"
-    cleaned = _clean_speech(said).lower()
-    m_corr = (
-        re.search(r"\bj'ai\s+dit\s+([\wÀ-ÿ'-]+)\s*,\s*pas\s+([\wÀ-ÿ'-]+)\b", cleaned)
-        if french
-        else re.search(r"\bi\s+said\s+([\w'-]+)\s*,\s*not\s+([\w'-]+)\b", cleaned)
-    )
+    if not (seen_parts or rules_parts or last_q or note_texts):
+        return _not_seen_yet(lang)
+    parts = []
+    if seen_parts:
+        seen = _short(seen_parts[-1].split(" | ")[0].splitlines()[0], 10).rstrip(".")
+        parts.append(f"à l'écran j'ai vu {seen}" if french else f"on screen I saw {seen}")
     if rules_parts:
-        latest_rule = rules_parts[-1]
-        if m_corr:
-            w1, w2 = m_corr.group(1), m_corr.group(2)
-            return (
-                f"Bien compris, tu parlais de {w1} et non de {w2} : la règle notée jusqu'ici est {latest_rule}."
-                if french
-                else f"Understood, you meant {w1} rather than {w2}: the rule noted so far is {latest_rule}."
-            )
-        if re.search(r"\b(?:give|tell|remind|donne|dis|rappelle)\b", cleaned):
-            return (
-                f"Voici la règle que j'ai notée : {latest_rule}."
-                if french
-                else f"Here is the rule I have noted: {latest_rule}."
-            )
-        return (
-            f"La règle notée jusqu'ici est : {latest_rule}."
-            if french
-            else f"The rule noted so far is: {latest_rule}."
-        )
-
-    latest_note = _short(note_texts[0]) if note_texts else ""
-    screen_summary = _short(seen_parts[-1].split(" | ")[0].splitlines()[0], 16).rstrip(".") if seen_parts else ""
-    short_q = _short(last_q, 10).rstrip("?") + "?" if last_q else ""
-    q_tail_en = f'; I asked: "{short_q}"' + "." if last_q else "."
-    q_tail_fr = f" ; j'ai demandé : « {short_q} »." if last_q else "."
-
-    if m_corr:
-        w1, w2 = m_corr.group(1), m_corr.group(2)
-        if french:
-            return f"Bien compris, tu as dit {w1} et non {w2} : je n'ai cité aucune règle jusqu'ici{q_tail_fr}"
-        return f"Understood, you said {w1} rather than {w2}: I have not cited any rule yet{q_tail_en}"
-
-    if re.search(r"\b(?:rooms?|salles?)\b", cleaned):
-        if french:
-            if screen_summary:
-                return f"Sur l'écran j'ai vu {screen_summary}, mais je n'ai cité aucune règle sur une salle{q_tail_fr}"
-            return f"Je n'ai parlé d'aucune salle ni d'aucune règle jusqu'ici{q_tail_fr}"
-        if screen_summary:
-            return f"On your screen I saw {screen_summary}, I have not cited any rule about a room{q_tail_en}"
-        return f"I have not mentioned a room or a rule yet{q_tail_en}"
-
-    if re.search(r"\b(?:roles?|r[ôo]les?)\b", cleaned):
-        if french:
-            if latest_note:
-                return f"Je n'ai cité aucun rôle ni règle : j'ai seulement noté « {latest_note} »{q_tail_fr}"
-            return f"Je n'ai cité aucun rôle d'organisateur ni aucune règle jusqu'ici{q_tail_fr}"
-        if latest_note:
-            return f'I did not mention an organiser role or rule: I only noted "{latest_note}"{q_tail_en}'
-        return f"I have not mentioned an organiser role or rule so far{q_tail_en}"
-
-    if re.search(r"\b(?:need|whole|for\s+organi[sz]ers?|pour\s+l'organisateur)\b", cleaned):
-        if french:
-            if latest_note:
-                return f"Pour l'organisateur, je n'ai encore noté aucune règle{q_tail_fr}"
-            return f"Pour l'organisateur, aucune règle n'a encore été formulée dans mes notes{q_tail_fr}"
-        if latest_note:
-            return f"For the organiser, I have no rule noted yet{q_tail_en}"
-        if screen_summary:
-            return f"For the organiser, I saw {screen_summary} on screen and have no rule noted yet{q_tail_en}"
-        return f"For the organiser, no rule has been stated in my notes yet{q_tail_en}"
-
-    if re.search(r"\b(?:give|tell|remind|donne|dis|rappelle)\b", cleaned):
-        if french:
-            if screen_summary:
-                return f"Je n'ai aucune règle à te donner car aucune n'a été citée ; à l'écran j'ai vu {screen_summary}{q_tail_fr}"
-            return f"Je n'ai aucune règle à te donner car aucune règle n'a encore été citée{q_tail_fr}"
-        if screen_summary:
-            return f"I have no rule to give because I have not cited one yet; on screen I saw {screen_summary}{q_tail_en}"
-        return f"I have no rule to give because no rule has been cited yet{q_tail_en}"
-
-    if french:
-        detail = (
-            f"aucune règle n'est encore notée, et ma dernière question était « {last_q} »."
-            if last_q
-            else "aucune règle n'est encore notée."
-        )
+        rule = _short(rules_parts[-1], 14).rstrip(".")
+        parts.append(f"la règle notée est : {rule}" if french else f"the rule noted is: {rule}")
     else:
-        detail = (
-            f'no rule has been noted so far, and my last question was "{last_q}".'
-            if last_q
-            else "no rule has been noted so far."
-        )
-    return _not_seen_yet(lang, detail)
+        parts.append("aucune règle n'est encore notée" if french else "no rule is noted yet")
+        if note_texts and not seen_parts:
+            note = _short(note_texts[0], 8).rstrip(".")
+            parts.append(f"j'ai noté « {note} »" if french else f'I noted "{note}"')
+    if last_q:
+        question = _short(last_q, 12)
+        parts.append(f"ma dernière question était : {question}" if french else f"my last question was: {question}")
+    text = "; ".join(parts)
+    return text[0].upper() + text[1:] + ("" if text.endswith(("?", ".", "!")) else ".")
 
 
 def _norm_answer(text: str) -> str:
@@ -501,9 +442,11 @@ def _ensure_distinct_answer(
     if ans.strip().lower() not in used:
         return ans
     topic = _short(said, 6).strip(" ?.!,;:")
+    # "I" stays a capital inside the sentence (measured: "About ...: i have not seen that yet").
+    rest = ans if re.match(r"I\b", ans) else (ans[0].lower() + ans[1:] if len(ans) > 1 else ans)
     if lang == "fr":
-        return f"Sur « {topic} » : {ans[0].lower() + ans[1:] if len(ans) > 1 else ans}"
-    return f'About "{topic}": {ans[0].lower() + ans[1:] if len(ans) > 1 else ans}'
+        return f"Sur « {topic} » : {rest}"
+    return f'About "{topic}": {rest}'
 
 
 def answer_pupil_question(
@@ -580,16 +523,7 @@ def answer_pupil_question(
         if line_r and line_r not in rules_parts:
             rules_parts.append(line_r)
 
-    cleaned = _clean_speech(said).lower()
-    asks_save = is_save_preview_question(said)
-    asks_rule = bool(
-        re.search(r"\b(?:rules?|roles?|rooms?|whole|r[èe]gles?)\b", cleaned)
-        or re.search(r"\bsaid\s+rule\b|\bdit\s+r[èe]gle\b", cleaned)
-    )
-    asks_screen = bool(re.search(r"\b(?:screen|deck|desk|[ée]cran)\b", cleaned)) and not asks_rule
-    asks_question = bool(re.search(r"\b(?:question|ask(?:ed)?|demand[ée])\b", cleaned))
-
-    if asks_save:
+    if is_save_preview_question(said):
         # Named, not read whole: the rule as "when ..., ...", a step by its title (measured live:
         # the reply read each proposal and its quote back, past a minute of speech).
         named = []
@@ -609,36 +543,13 @@ def answer_pupil_question(
             )
         return _not_seen_yet(lang)
 
-    if not seen_parts and not last_q and not steps_parts and not rules_parts and not proposal_parts:
-        if asks_rule:
-            return _ensure_distinct_answer(
-                _contextual_rule_answer(
-                    lang,
-                    said,
-                    seen_parts=seen_parts,
-                    last_q=last_q,
-                    note_texts=note_texts,
-                    rules_parts=rules_parts,
-                ),
-                said,
-                lang,
-                previous_qa,
-            )
-        return _not_seen_yet(lang)
-    if asks_screen and not seen_parts:
-        return _not_seen_yet(lang)
+    # Nothing known at all: nothing to word, and "I have not seen that yet" to every question helps no one
+    # (measured live on 2026-10-15: 6 answers in 9 with nothing noted). What is empty is said, plainly.
+    if not (seen_parts or last_q or steps_parts or rules_parts or proposal_parts):
+        return _ensure_distinct_answer(_NOTHING_KNOWN[lang if lang in _NOTHING_KNOWN else "en"], said, lang, previous_qa)
 
-    fallback_ans = ""
-    if asks_rule:
-        fallback_ans = _contextual_rule_answer(
-            lang,
-            said,
-            seen_parts=seen_parts,
-            last_q=last_q,
-            note_texts=note_texts,
-            rules_parts=rules_parts,
-        )
-
+    # The model words the answer from the facts below, whatever the question's wording or what speech
+    # recognition made of it; nothing here sorts questions by their words (review of 2026-10-15).
     if _command_model_ready():
         prev_lines = "\n".join(
             f'- Q: "{pq}" -> A: "{pa}"' for pq, pa in list(previous_qa or ())[-6:]
@@ -671,70 +582,14 @@ def answer_pupil_question(
             if text:
                 sentences = [s.strip() for s in re.split(r"(?<=[.?!])\s+", text) if s.strip()]
                 candidate = _spoken_length(sentences[0]) if sentences else ""
-                valid_no_rule = True
-                if asks_rule and not rules_parts:
-                    has_no_rule_ack = bool(
-                        re.search(
-                            r"\b(?:no\s+(?:rules?|organi[sz]er\s+roles?)|"
-                            r"not\s+(?:[\w\s]{0,20}\b)?(?:rules?|roles?|cited|noted|mentioned|seen|stated|talked\s+about)|"
-                            r"haven't\s+(?:[\w\s]{0,20}\b)?(?:rules?|roles?|cited|noted|mentioned|seen|stated)|"
-                            r"aucune\s+r[èe]gle|pas\s+(?:[\wÀ-ÿ\s]{0,20}\b)?(?:r[èe]gles?|cit[ée]|not[ée]|mentionn[ée]|vu))\b",
-                            candidate,
-                            re.IGNORECASE,
-                        )
-                    ) and not candidate.lower().startswith("i have not seen that yet.")
-                    # A short answer that says no rule was noted is kept. Recalling the question is
-                    # asked for in the prompt; refusing an answer without it sent replies to the long
-                    # fallbacks and past 3 s (measured live).
-                    valid_no_rule = has_no_rule_ack
-                if (
-                    candidate
-                    and valid_no_rule
-                    and not _is_near_duplicate_answer(candidate, cleaned, previous_qa)
-                ):
+                if candidate:
                     return _ensure_distinct_answer(candidate, said, lang, previous_qa)
         except Exception as error:
             logger.warning("Could not word pupil answer with model, using fallback: %s", error)
 
-    if fallback_ans:
-        return _ensure_distinct_answer(fallback_ans, said, lang, previous_qa)
-    if asks_question and last_q:
-        return _ensure_distinct_answer(
-            f"Ma dernière question était : {last_q}" if french else f"My last question was: {last_q}",
-            said,
-            lang,
-            previous_qa,
-        )
-    if seen_parts:
-        summary = _short(seen_parts[-1].split(" | ")[0].splitlines()[0], 20).rstrip(".")
-        ans = f"À l'écran, j'ai vu : {summary}." if french else f"On your screen I saw {summary}."
-        return _ensure_distinct_answer(ans, said, lang, previous_qa)
-    if rules_parts:
-        return _ensure_distinct_answer(
-            f"La règle notée jusqu'ici est : {rules_parts[-1]}."
-            if french
-            else f"The rule noted so far is: {rules_parts[-1]}.",
-            said,
-            lang,
-            previous_qa,
-        )
-    if steps_parts:
-        return _ensure_distinct_answer(
-            f"La dernière chose que j'ai notée : {_short(steps_parts[-1], 12)}."
-            if french
-            else f"The last thing I noted: {_short(steps_parts[-1], 12)}.",
-            said,
-            lang,
-            previous_qa,
-        )
-    if last_q:
-        return _ensure_distinct_answer(
-            f"Ma dernière question était : {last_q}" if french else f"My last question was: {last_q}",
-            said,
-            lang,
-            previous_qa,
-        )
-    return _not_seen_yet(lang)
+    return _ensure_distinct_answer(
+        _what_i_know(lang, seen_parts=seen_parts, rules_parts=rules_parts, last_q=last_q, note_texts=note_texts),
+        said, lang, previous_qa)
 
 
 
