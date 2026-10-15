@@ -29,6 +29,11 @@ class WorkMapError(RuntimeError):
     """The map cannot hold what it was given."""
 
 
+class MapChanged(WorkMapError):
+    """The map was written by someone else since it was loaded: saved now, it would undo their change.
+    Found in the review of 2026-10-14: a map was written back whole, the last writer winning."""
+
+
 @dataclass(frozen=True)
 class Guardrail:
     """
@@ -129,6 +134,8 @@ class WorkMap:
     # them. Empty: the order they were taught in. The learner's path follows this order.
     order: list = field(default_factory=list)
     sections: list = field(default_factory=list)
+    # How many times the map was saved: a save from an older copy is refused, never written over a newer one.
+    version: int = 0
 
     def ordered_steps(self) -> list["Step"]:
         position = {step_id: i for i, step_id in enumerate(self.order)}
@@ -233,6 +240,8 @@ def _connect(path: str = WORKMAP_PATH) -> sqlite3.Connection:
     for name in ("validated", "contents"):
         if name not in columns:
             connection.execute(f"ALTER TABLE workmaps ADD COLUMN {name} TEXT")
+    if "version" not in columns:
+        connection.execute("ALTER TABLE workmaps ADD COLUMN version INTEGER NOT NULL DEFAULT 0")
     if "organisation" not in columns:
         # Maps written before organisations existed belong to the one there was.
         connection.execute("ALTER TABLE workmaps ADD COLUMN organisation TEXT NOT NULL DEFAULT ''")
@@ -258,11 +267,18 @@ class WorkMapStore:
                        organisation=_owned(organisation))
 
     def save(self, work_map: WorkMap) -> None:
+        """Written when nobody saved it since it was loaded; refused otherwise (MapChanged)."""
         with _connect(self.path) as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute("SELECT version FROM workmaps WHERE map_id = ?", (work_map.map_id,)).fetchone()
+            if row is not None and int(row[0]) != work_map.version:
+                raise MapChanged(f"The map {work_map.map_id} was saved meanwhile (version {row[0]}, "
+                                 f"this copy {work_map.version}).")
+            version = (int(row[0]) if row is not None else work_map.version) + 1
             connection.execute(
                 "INSERT OR REPLACE INTO workmaps (map_id, task, expert, created_at, "
-                "confirmed_at, steps, guardrails, rulings, language, access, organisation, validated, contents) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "confirmed_at, steps, guardrails, rulings, language, access, organisation, validated, contents, "
+                "version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (work_map.map_id, work_map.task, work_map.expert, work_map.created_at,
                  work_map.confirmed_at,
                  json.dumps([asdict(s) for s in work_map.steps]),
@@ -270,14 +286,15 @@ class WorkMapStore:
                  json.dumps([asdict(r) for r in work_map.rulings]), work_map.language,
                  json.dumps(work_map.access), _owned(work_map.organisation),
                  json.dumps(work_map.validated) if work_map.validated is not None else None,
-                 json.dumps({"order": work_map.order, "sections": work_map.sections})),
+                 json.dumps({"order": work_map.order, "sections": work_map.sections}), version),
             )
+        work_map.version = version
 
     def load(self, map_id: str) -> WorkMap | None:
         with _connect(self.path) as connection:
             row = connection.execute(
                 "SELECT map_id, task, expert, created_at, confirmed_at, steps, guardrails, "
-                "rulings, language, access, organisation, validated, contents FROM workmaps WHERE map_id = ?",
+                "rulings, language, access, organisation, validated, contents, version FROM workmaps WHERE map_id = ?",
                 (map_id,)).fetchone()
         if row is None:
             return None
@@ -295,6 +312,7 @@ class WorkMapStore:
             validated=json.loads(row[11]) if row[11] else None,
             order=json.loads(row[12] or "{}").get("order", []),
             sections=json.loads(row[12] or "{}").get("sections", []),
+            version=int(row[13] or 0),
         )
 
     def delete(self, map_id: str) -> bool:
@@ -339,5 +357,7 @@ class WorkMapStore:
             language=data.get("language", "en"),
             organisation=data.get("organisation") or LEGACY_ORGANISATION,
             validated=data.get("validated"), order=data.get("order", []), sections=data.get("sections", []))
+        current = self.load(work_map.map_id)        # an import replaces the map whole, deliberately
+        work_map.version = current.version if current is not None else 0
         self.save(work_map)
         return work_map
