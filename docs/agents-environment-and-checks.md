@@ -5,7 +5,8 @@ Part of [AGENTS.md](../AGENTS.md).
 ## The environment
 
 - macOS, Python 3.13 managed by `uv` (`pyproject.toml`, `uv.lock`), Node 24 for the page tests.
-- The project is **not a git repository**. Keep a list of every file you change.
+- The project is a git repository. Nothing is committed, pushed or branched without the
+  owner's word (the house rules); keep the list of every file you change for the report.
 - One FastAPI server, `server.py`, run by `scripts/serve.sh` (restarts whatever holds 8790):
   - `/` the showcase, `/teach/` the guardian, `/learn/` the learner, `/presentation/` the stage.
 - Services, by the names of their settings (values in `.env`, never shown):
@@ -56,11 +57,11 @@ URITHI_LIVE_NEO4J=1 uv run pytest -q tests -k neo4j      # the store contract on
 bash scripts/serve.sh                                    # restart the server on 8790
 ```
 
-- Today: 495 tests pass, 7 are skipped (live tests behind flags), ruff is clean, and
-  `scripts/mutate.py` holds 232 deliberate defects.
-- **While `mutate.py` runs, it rewrites source files one at a time and the server serves
-  them**: do not edit files, and do not test in the browser, until it has finished. It holds
-  `.mutating` as a lock; a suite started meanwhile refuses to run.
+- On 2026-10-15: 589 tests pass, 7 are skipped (live tests behind flags), ruff is clean, and
+  `scripts/mutate.py` holds 337 deliberate defects, all caught.
+- **`mutate.py` works on copies of the repository in a temporary directory**, taken when it
+  starts; the tree and the server are not touched. A change made while it runs is seen only in
+  part (the mutant's own file is read again, the rest is the copy): after editing, run it again.
 - A mutant reported SKIPPED means its text no longer occurs exactly once: retarget it to the
   new line. A mutant MISSED means a guarantee nobody holds: write the test. Never delete or
   loosen a mutant to make a run pass.

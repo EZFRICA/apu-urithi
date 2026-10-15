@@ -12,7 +12,9 @@ guess, and the offline package keeps learners going.
 |---|---|---|
 | The guard's model | answers nothing (`GuardUnavailable`), says so | check the key and the provider status |
 | The answer's model | shows the guardian's own words (extractive) | the same |
-| Speech out | shows the text; the teleprompter still works | check the speech key or provider |
+| The pupil's model (a class) | says in one sentence what it knows: what it saw, the rule noted or that none is, its question | the same |
+| The command classifier | falls back to fixed patterns: "save this" still saves; the other commands only when said plainly | the same |
+| Speech out | the second voice takes over (measured on 2026-10-15, the first key refused); else shows the text | check the speech key or provider |
 | Speech in | asks to type instead | the same |
 | Public search | says refused or failed, tries the next service; rules stay unchecked, never "house rule" | allow-list, zone names, quotas of the search service |
 | Neo4j | learners continue from kept packages; publishing waits | instance paused or down; credentials |

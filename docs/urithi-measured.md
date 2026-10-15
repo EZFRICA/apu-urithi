@@ -86,3 +86,5 @@ Further measurements by feature:
 - [measured-french-exam-and-files.md](measured-french-exam-and-files.md): teaching in French, the learner's exam, and signed knowledge files.
 - [measured-a-and-an.md](measured-a-and-an.md): the end-to-end "a" and "an" run, Bright Data, and the provider SDK.
 - [measured-separation-and-redesign.md](measured-separation-and-redesign.md): step 0 separation and the redesign.
+- [measured-saving-and-forgetting.md](measured-saving-and-forgetting.md): the review of decision 0016, saving and forgetting, measured live.
+- [measured-maps-pupil-and-learner.md](measured-maps-pupil-and-learner.md): the map written once, the migration, the pupil answering from facts, the learner read again.

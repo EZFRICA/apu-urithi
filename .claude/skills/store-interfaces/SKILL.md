@@ -25,6 +25,17 @@ and **the state of a session in progress** (never a module-level dictionary).
 4. **Contract tests** run against every implementation; a production implementation is
    accepted when it passes them, live, behind an environment flag.
 
+## Two writers at once
+
+A store a request loads, changes and saves must not let a later save undo an earlier one
+(found in the review of 2026-10-14: the map and the working memory were written back whole).
+- **Maps** keep a version: a save from an older copy is refused (`MapChanged`, said as a 409),
+  and every route that writes a map holds `map_lock(map_id)` (`guardian/memory/store.py`).
+- **Working memories** replay the changes a memory made on the newer list; what is only
+  recomputed from the rest is marked derived and dropped when what it was read from changed.
+- Any other implementation keeps the same behaviour, held by the tests of
+  `tests/guardian/test_saving_and_forgetting.py` (a stale map refused, two saves at once both land).
+
 ## Object storage
 
 - Local disk while drafting: temporary.

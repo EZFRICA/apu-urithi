@@ -12,8 +12,9 @@ Urithi structures what they say into steps and rules, in their own words; **lear
 - **The guardian's side** (`/teach/`): teaching by conversation, documents to cite (PDF by page,
   a recording by its moment, an image), and **the classroom mode**: the guardian shares a screen
   or a camera, Urithi asks at the pauses, the guardian can say "remember this" to keep a part of
-  the screen. Everything is a **draft** until the guardian validates it, then publishes it with
-  an access level per part.
+  the screen. What Urithi hears and sees is a **note** or a **proposal** until the guardian says
+  to save it (docs/decisions/0016); a saved part is a **draft** until the guardian validates it,
+  then publishes it with an access level per part.
 - **The library** (Neo4j): the validated knowledge, per organisation, each part at its level.
 - **The learner's side** (`/learn/`): a path in the guardian's order; each part read, listened
   to (a teleprompter lights each word), in braille, illustrated, practised; questions typed or
@@ -49,7 +50,8 @@ day's file before you start; it says what was done last and what is left.
 
 1. **Every command through `uv`**: `uv run pytest`, `uv run python ...`, `uv add ...`. Never
    `pip`, never a bare `python`.
-2. **No commit, no push, no branch.** Leave every change uncommitted and report it.
+2. **No commit, no push, no branch** until the owner says so. Leave every change uncommitted
+   and report it.
 3. **Never print a key, a token or any value from `.env`.** Check a setting by its name and
    whether it is set. Never write a model name that is not already in the repository: model
    choices go in `.env` only (some names are confidential).

@@ -4,28 +4,25 @@ Part of [AGENTS.md](../AGENTS.md).
 
 ## What to read before the next work
 
-- `docs/plan.md`, section **Next: the guardian's expert pupil**, is the work ahead:
-  - **P1, the guardian's commands**, understood by intent with the fast model rather than by
-    keywords ("remember this", "this is an example", "a common mistake", "compare with
-    before", "forget that"), and a part of the screen pointed at.
-  - **P2, the expert pupil**: what a learner would miss, judged by importance; asked only
-    when important, at a pause; passable; a silent mode that keeps questions for the
-    debrief; the guardian's threshold learned from what they pass.
-  - **P3, the camera's own rules**: gestures, objects, a whiteboard, pauses read from a
-    camera that always moves, other people's faces blurred.
-- `docs/decisions/0013` and `0014`: the switches belong to the person; anyone teaches; the
-  learner's side stays a tutor that answers when asked and takes no initiative; no learners
-  live in the class for now.
-- `docs/architecture.md` for the design, `docs/measured-steps.md` and `docs/measured-class.md`
-  for what was measured and why each rule exists. Many comments in the code begin with
-  "Measured:": they say which real failure a line prevents. Keep them true.
+- `docs/plan.md`: the steps are done (0 to 8, then the expert pupil P1 to P3); what is left is
+  its list **Later, each a project of its own**. Ask the owner which comes next.
+- `docs/decisions/0013` to `0016`: the switches belong to the person; anyone teaches; the
+  APU memory; Urithi notes anything and only the guardian saves knowledge, by their own words.
+- `docs/architecture.md` for the design; `docs/measured-class.md`,
+  `docs/measured-saving-and-forgetting.md` and `docs/measured-maps-pupil-and-learner.md` for
+  what was measured last and why each rule exists. Many comments in the code begin with
+  "Measured:" or "Found in the review of": they say which real failure a line prevents. Keep
+  them true.
 
 ## Known open points
 
-- **Two fixes are designed and not applied** (the owner has not decided yet): a question
-  waiting is dropped on the page when the guardian says "remember this" while the server
-  still holds it, and the class stops asking; and "keep this" heard anywhere in a sentence is
-  too wide ("we keep this channel public" counts as a request). Ask before applying either.
+- A covered question can still reach the guardian as "nothing yet" when the model finds no
+  answer twice in a row; measured after the fix, 0 in 18. The server logs which way each
+  question went, never its words.
+- The pupil's answers come from the model: measured 24 in 24 right, one of them calling a
+  waiting proposal "saved".
+- Any other implementation of the map store must keep its version: a save from an older copy is
+  refused (`MapChanged`), never written over (`.claude/skills/store-interfaces`).
 - With the smallest question model, a question sometimes names an option the screen never
   showed; it is told not to.
 - The test process has once ended with a native `recursive_mutex lock failed` at exit; a

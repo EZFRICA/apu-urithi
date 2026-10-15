@@ -66,8 +66,8 @@ deployed is decided later, and nothing in the code assumes one process.
 **Every store sits behind an interface**, so the resources are a deployment choice, not a
 design one: SQLite and the local disk on a laptop, a managed database, a shared cache and
 Cloud Storage in production, with no change to the code that uses them. That includes the
-state of a session in progress, which today lives in a dictionary of the server process and
-must move behind the same kind of interface.
+state of a session in progress, behind `SessionStore` (`guardian/memory/store.py`): held in the
+server process locally, and moved to a shared store by a deployment with no change to the routes.
 
 ## What runs where (v1, done)
 

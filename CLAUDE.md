@@ -10,10 +10,10 @@ with the owner, no dash in prose, no Markdown over 100 lines.
   `docs/measured-class.md`, and their per-feature `docs/measured-*.md` files.
 - Skills in `.claude/skills/` (boundaries, guarantees, real-condition test, stores, metering,
   organisations, security, accessibility, languages, Neo4j, load, release, incidents, decisions).
-- Agents in `.claude/agents/` (architecture, security, privacy, scale, data, model evaluation,
-  accessibility, frontend, tests, real conditions, platform, cost, documents).
+- Agents in `.claude/agents/` (architecture, security, tests, real conditions, documents); those
+  for later steps (privacy, scale, data, model evaluation, accessibility, frontend, platform,
+  cost) wait in `.claude/agents-later/`.
 - Evaluations: `.claude/skills/<skill>/evals/evals.json`, three cases each for the critical
-  skills. Give a case's query to a fresh session with the skill loaded and check every
-  expected behaviour; add a case whenever a real task shows a gap. Agents for later steps wait
-  in `.claude/agents-later/`.
+  skills (house rules, boundaries, guarantees). Give a case's query to a fresh session with the
+  skill loaded and check every expected behaviour; add a case whenever a real task shows a gap.
 - One deliberate defect alone: `uv run python scripts/mutate.py --only "<label words>"`.
