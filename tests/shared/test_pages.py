@@ -258,10 +258,11 @@ def test_a_learner_asking_aloud_is_heard_without_live_words():
 
 def test_a_question_waiting_is_not_forgotten_when_the_screen_is_kept():
     """Found in review: "keep this" while a question waited dropped it on the page and not on the
-    server, and the class never asked again."""
-    keeping = TEACH_JS[TEACH_JS.index("  async rememberScreen("):][:1600]
+    server, and the class never asked again. Widened in the second review of 2026-10-14: a save made
+    from there dropped it too; now any reply that asks nothing else keeps it."""
+    keeping = TEACH_JS[TEACH_JS.index("  async rememberScreen("):TEACH_JS.index("  async float()")]
     assert "const asked = this.classroom.pending;" in keeping
-    assert "if (reply.step && asked && !this.classroom.pending) {\n      this.classroom.pending = asked;" in keeping
+    assert "if (asked && !this.classroom.pending && !reply.question) {\n      this.classroom.pending = asked;" in keeping
     assert '$("class-question").hidden = false;' in keeping and '$("class-question").textContent = asked.question;' in keeping
     assert '$("class-status").textContent = this.t("stillAsking");' in keeping
     assert "Kept. Urithi's question still waits for you." in TEACH_JS
@@ -428,3 +429,11 @@ def test_the_waiting_question_stays_in_view_with_pass_after_anything_else_done_i
     assert "this.syncPending();" in send[:send.index("\n  }\n")]
     point = TEACH_JS[TEACH_JS.index("  pointScreen(region) {"):]
     assert "this.syncPending();" in point[:point.index("\n  }\n")]
+
+
+def test_every_page_declares_its_icon():
+    """Measured live on 2026-10-15: the showcase and the teach page asked the server for /favicon.ico,
+    which does not exist, and the browser logged a 404 error on every visit."""
+    for path in ("apu/ui/showcase/index.html", "guardian/ui/teach/index.html", "learner/ui/learn/index.html",
+                 "apu/ui/presentation/index.html"):
+        assert 'rel="icon"' in (ROOT / path).read_text(encoding="utf-8"), path
