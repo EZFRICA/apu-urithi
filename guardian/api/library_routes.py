@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from apu import meter
 from apu.logger import get_logger
+from guardian.api.routes import writes_map
 from guardian.memory.store import get_maps
 from guardian.publish import body_id_for, publication_from
 from library import access
@@ -124,6 +125,7 @@ def preview(body: PublishBody) -> dict:
 
 
 @router.post("/publish")
+@writes_map
 def publish(body: PublishBody) -> dict:
     """A confirmed Work Map into the library, by its own guardian, as a new version."""
     work_map = get_maps().load(body.map_id)

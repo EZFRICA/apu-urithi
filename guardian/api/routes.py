@@ -16,6 +16,7 @@ read any guardian's draft, answer its cases, and confirm it, which is what opens
 
 import base64
 import dataclasses
+import functools
 import re
 import threading
 import time
@@ -40,8 +41,8 @@ from guardian.engine import (
     wording,
 )
 from guardian.engine.tutor import mastery, review
-from guardian.engine.workmap import Guardrail, Ruling, Step
-from guardian.memory.store import get_maps, get_sessions
+from guardian.engine.workmap import Guardrail, MapChanged, Ruling, Step
+from guardian.memory.store import get_maps, get_sessions, map_lock
 from guardian.memory.working import get_working
 from library import access
 
@@ -73,6 +74,22 @@ async def _a_guardian(request: Request, person_id: str | None = None,
 
 
 router = APIRouter(prefix="/api/guardian", dependencies=[Depends(_a_guardian)])
+
+
+def writes_map(route):
+    """A route that loads a map and saves it does both under the map's lock, so two requests never write
+    one over the other; a map saved meanwhile by another process is refused, said plainly, never
+    overwritten. Found in the review of 2026-10-14: the map was written back whole, the last one winning."""
+    @functools.wraps(route)
+    def held(*args, **kwargs):
+        body = kwargs.get("body", args[0] if args else None)
+        with map_lock(str(getattr(body, "map_id", "") or "")):
+            try:
+                return route(*args, **kwargs)
+            except MapChanged as error:
+                raise HTTPException(status_code=409, detail="This knowledge changed meanwhile, and nothing was "
+                                                            "written over it: say it again.") from error
+    return held
 
 
 def _session(map_id: str) -> dict:
@@ -145,7 +162,7 @@ def _known_guardrails(work_map, memory=None) -> list[Guardrail]:
                     then=str(c["then"]),
                     quote=str(c.get("quote") or c["then"]),
                     asked_at=float(c.get("asked_at", 0.0)),
-                    severity=str(c.get("severity") or "warning"),
+                    severity=str(c.get("severity") or "check"),
                     said_at=str(c.get("said_at") or ""),
                     cites=tuple(c.get("cites") or ()),
                 )
@@ -175,27 +192,33 @@ def _refresh_proposals(work_map, memory, *, use_model: bool = True) -> list[dict
     # and a rule said after a passed question was never offered at all.
     ignored = {str(v) for b in memory.of_kind("retained", "ignored-")
                for v in ((b.get("content") or {}).get("proposal_id"), (b.get("content") or {}).get("guardrail_id")) if v}
+    # A proposal the guardian changed is theirs now: it stays until saved, ignored or forgotten.
+    # Found in the review of 2026-10-14: an edited step was dropped here and its wording lost
+    # whenever the judge chose another note.
     kept_rules = set()
-    for p in existing:
-        if not isinstance(p, dict):
-            continue
-        if p.get("origin") == "rule":
-            kept_rules.add(str(p.get("guardrail_id") or p.get("proposal_id") or ""))
-        elif p.get("origin") in ("tell", "answer", "note"):
-            pid_old = str(p.get("proposal_id") or "")
-            if pid_old:
-                memory.drop(f"proposal-{pid_old}")
     judged = absorb.judge_proposals(work_map, notes, noted_rules, use_model=use_model)
     out: list[dict] = []
-    for prop in judged:
-        pid_new = str(prop.get("proposal_id") or "")
-        if pid_new in ignored or str(prop.get("guardrail_id") or "") in ignored:
-            continue
-        if prop.get("kind") == "rule" and str(prop.get("guardrail_id") or pid_new) in kept_rules:
-            continue
-        merged = {**prop, **edited_by_id[pid_new]} if pid_new in edited_by_id else prop
-        memory.put("open", f"proposal-{pid_new}", merged)
-        out.append(merged)
+    with memory.derived():
+        for p in existing:
+            if not isinstance(p, dict):
+                continue
+            if p.get("origin") == "rule":
+                kept_rules.add(str(p.get("guardrail_id") or p.get("proposal_id") or ""))
+            elif p.get("origin") in ("tell", "answer", "note") and not p.get("edited"):
+                pid_old = str(p.get("proposal_id") or "")
+                if pid_old:
+                    memory.drop(f"proposal-{pid_old}")
+        for prop in judged:
+            pid_new = str(prop.get("proposal_id") or "")
+            if pid_new in ignored or str(prop.get("guardrail_id") or "") in ignored:
+                continue
+            if prop.get("kind") == "rule" and str(prop.get("guardrail_id") or pid_new) in kept_rules:
+                continue
+            if pid_new in edited_by_id:
+                out.append(edited_by_id[pid_new])
+                continue
+            memory.put("open", f"proposal-{pid_new}", prop)
+            out.append(prop)
     return out
 
 
@@ -951,11 +974,28 @@ def tell(body: TellBody, background_tasks: BackgroundTasks = None) -> dict:
         else None
     )
     question = judgment.question if kind else None
+    if (session.get("pending") or {}).get("from") == "tell":
+        session["pending"] = None   # what is said here answers the follow-up /tell asked before
     if question:
-        session["pending"] = None   # a follow-up is answered with /tell, like anything else
         session["asked"].append(kind)
         session.setdefault("asked_questions", []).append(question)
         session["last_question_text"] = question
+        if "last_at" in session:
+            # In a class, a follow-up is the one question waiting, on the class clock: nothing else is
+            # asked over it, and it can be answered or passed like any other. Found in the review of
+            # 2026-10-14: it was left unmarked, and the screen asked a second question at once.
+            class_at = float(session["last_at"])
+            session["last_question_at"] = class_at
+            session["pending"] = {
+                "kind": kind.value,
+                "observation": dataclasses.replace(seen, at=class_at),
+                "asked_at": class_at,
+                "importance": judgment.importance,
+                "why": judgment.why,
+                "question": question,
+                "source": session.get("source", "screen"),
+                "from": "tell",
+            }
     # The working memory (guardian/memory/working.py): the question just answered is closed,
     # what was said and the rules noted are kept, and the next question waits on the guardian.
     memory.drop("question")
@@ -1114,6 +1154,7 @@ def _ask_which_proposal(language: str, proposals: list[dict]) -> str:
 
 
 @router.post("/save")
+@writes_map
 def save_proposal(body: SaveBody) -> dict:
     """Decision 0016: only the guardian saves knowledge into work_map, one item at a time."""
     work_map = get_maps().load(body.map_id)
@@ -1128,7 +1169,11 @@ def save_proposal(body: SaveBody) -> dict:
         proposal = dict(block["content"])
     else:
         open_proposals = [b["content"] for b in memory.of_kind("open", "proposal-") if isinstance(b.get("content"), dict)]
-        recent_notes = [b["content"] for b in memory.of_kind("recent", "note-") if isinstance(b.get("content"), dict)]
+        # A note set aside (ignored or forgotten) is not saved by "save this" either. Found in the second
+        # review of 2026-10-14: with nothing waiting, "save this" saved the note just ignored.
+        aside = {str((b.get("content") or {}).get("proposal_id") or "") for b in memory.of_kind("retained", "ignored-")}
+        recent_notes = [b["content"] for b in memory.of_kind("recent", "note-") if isinstance(b.get("content"), dict)
+                        and str(b["content"].get("note_id") or b["ref"].removeprefix("note-")) not in aside]
         what_clean = (body.what or "").strip()
         if what_clean and not commands._GENERIC_SAVE_WHAT_RE.match(what_clean):
             matched_p = _match_proposal_or_note(what_clean, open_proposals)
@@ -1219,8 +1264,13 @@ def save_proposal(body: SaveBody) -> dict:
             }
         elif len(open_proposals) == 1:
             proposal = dict(open_proposals[0])
-        elif recent_notes:
-            n0 = recent_notes[0]
+        elif memory.of_kind("recent", "note-"):
+            # "Save this" with nothing waiting is the latest note, and only it: set aside, nothing is saved,
+            # never an older note in its place (found in the second review of 2026-10-14).
+            latest = memory.of_kind("recent", "note-")[0]
+            n0 = latest.get("content") or {}
+            if str(n0.get("note_id") or latest["ref"].removeprefix("note-")) in aside:
+                raise HTTPException(status_code=404, detail="Nothing pending to save.")
             n0_rules = list(n0.get("rules") or ())
             proposal = {
                 "proposal_id": n0.get("note_id", ""),
@@ -1238,11 +1288,13 @@ def save_proposal(body: SaveBody) -> dict:
         else:
             raise HTTPException(status_code=404, detail="Nothing pending to save.")
 
-    if body.reason is not None and body.reason.strip():
+    if proposal.get("kind") == "rule" and body.reason is not None and body.reason.strip():
+        proposal = _reworded(work_map, proposal, body.reason.strip())
+    elif body.reason is not None and body.reason.strip():
         proposal["reason"] = body.reason.strip()
         if body.title is None:
             proposal["title"] = absorb.title_for(proposal["reason"], "", limit=140)
-    if body.title is not None and body.title.strip():
+    if body.title is not None and body.title.strip() and proposal.get("kind") != "rule":
         proposal["title"] = body.title.strip()
 
     if proposal.get("kind") == "case":
@@ -1294,7 +1346,7 @@ def save_proposal(body: SaveBody) -> dict:
             then=r["then"],
             quote=r.get("quote", proposal["reason"]),
             asked_at=float(r.get("at", 0.0)),
-            severity=r.get("severity", "warning"),
+            severity=r.get("severity") or "check",   # "stop" or "check": "warning" was refused
             said_at=r["step_said_at"] if "step_said_at" in r else (r.get("said_at") or now),
             cites=tuple(r.get("cites") or cites),
         )
@@ -1307,9 +1359,10 @@ def save_proposal(body: SaveBody) -> dict:
     if not is_rule_only:
         number = len(work_map.steps) + 1
         said_at = str(proposal.get("said_at") or "")
+        # A step holds the rules said with it, and only those. Found in the review of 2026-10-14:
+        # a step saved with none was given every rule of the knowledge, so the library linked each
+        # rule to it and forgetting that step deleted every rule and its cases.
         step_gids = [r["guardrail_id"] for r in raw_rules]
-        if not step_gids and work_map.guardrails:
-            step_gids = [g.guardrail_id for g in work_map.guardrails]
         step = Step(
             step_id=f"s{number}",
             number=number,
@@ -1338,6 +1391,9 @@ def save_proposal(body: SaveBody) -> dict:
     session = _session(work_map.map_id)
     if saved_step is not None:
         session.setdefault("captured_steps", []).append(saved_step.step_id)
+        if proposal.get("proposal_id"):
+            # Which note it was saved from, so forgetting it sets that note aside whatever its wording.
+            memory.put("retained", f"saved-{saved_step.step_id}", {"note_id": proposal["proposal_id"]})
     if proposal.get("proposal_id"):
         memory.drop(f"proposal-{proposal['proposal_id']}")
     for rail in rails:
@@ -1389,12 +1445,16 @@ def save_proposal(body: SaveBody) -> dict:
 def _save_from_voice(work_map, what: str = "") -> dict:
     try:
         return save_proposal(SaveBody(map_id=work_map.map_id, what=what))
-    except HTTPException:
-        msg = (
-            "Aucune proposition en attente à enregistrer."
-            if work_map.language == "fr"
-            else "Nothing pending to save yet."
-        )
+    except HTTPException as error:
+        if error.status_code == 409:
+            msg = ("La connaissance a changé entre-temps, rien n'a été écrasé : redis-le."
+                   if work_map.language == "fr" else "The knowledge changed meanwhile, nothing was written over: say it again.")
+        else:
+            msg = (
+                "Aucune proposition en attente à enregistrer."
+                if work_map.language == "fr"
+                else "Nothing pending to save yet."
+            )
         return {
             "intent": "save",
             "step": None,
@@ -1421,11 +1481,50 @@ def ignore_proposal(body: ProposalActionBody) -> dict:
     block = memory.find(f"proposal-{body.proposal_id}")
     content = (block or {}).get("content") or {}
     dropped = memory.drop(f"proposal-{body.proposal_id}")
-    # Ignored stays ignored: the next look at the notes does not offer it again.
-    memory.put("retained", f"ignored-{body.proposal_id}",
-               {"proposal_id": body.proposal_id, "guardrail_id": content.get("guardrail_id", "")})
+    # Ignored stays ignored: the next look at the notes does not offer it again, nor its rules.
+    _set_aside(work_map, memory, body.proposal_id, content, with_rules=content.get("kind") == "rule")
     get_working().save(work_map.organisation, work_map.map_id, memory)
     return {"ignored": dropped, "proposal_id": body.proposal_id}
+
+
+def _set_aside(work_map, memory, item_id: str, item: dict, *, with_rules: bool = True) -> None:
+    """A proposal or a note the guardian ignored or forgot stays aside and is not offered again;
+    forgotten, the rules said with it go too (a saved rule stays). Found in the review of 2026-10-14:
+    "forget that" dropped a rule's proposal, and the next look at the notes proposed the rule again."""
+    saved = {g.guardrail_id for g in work_map.guardrails}
+    gids = {str(r.get("guardrail_id") or "") for r in (item.get("rules") or item.get("guardrails") or ())
+            if isinstance(r, dict)} if with_rules else set()
+    if item.get("guardrail_id"):
+        gids.add(str(item["guardrail_id"]))
+    gids = {g for g in gids if g and g not in saved}
+    memory.put("retained", f"ignored-{item_id}", {"proposal_id": item_id, "guardrail_id": next(iter(gids), "")})
+    for gid in gids:
+        memory.drop(f"rule-{gid}")
+        memory.drop(f"proposal-rule-{gid[:10]}")
+        memory.put("retained", f"ignored-rule-{gid}", {"proposal_id": "", "guardrail_id": gid})
+
+
+def _reworded(work_map, proposal: dict, text: str) -> dict:
+    """A rule proposal said again in the guardian's corrected words: its when and then are read from
+    them, its id kept. Found in the review of 2026-10-14: a rule changed before saving was saved in
+    its first wording, since only the title and the reason were changed. Unreadable as a rule, the
+    corrected words are kept as its quote and the clauses stay as they were."""
+    if proposal.get("kind") != "rule":
+        return proposal
+    found = absorb.find_guardrails(text, at=float(proposal.get("at", 0.0)), language=work_map.language)
+    rules = [dict(r) for r in (proposal.get("rules") or proposal.get("guardrails") or ()) if isinstance(r, dict)]
+    first = rules[0] if rules else {"guardrail_id": proposal.get("guardrail_id") or uuid.uuid4().hex[:10]}
+    first["quote"] = text
+    if found:
+        first.update(when=found[0].when, then=found[0].then, severity=found[0].severity)
+    # More than one rule in the corrected words: each is kept, the first under the proposal's id.
+    more = [{**{k: v for k, v in first.items() if k not in ("guardrail_id", "when", "then", "severity")},
+             "guardrail_id": g.guardrail_id, "when": g.when, "then": g.then, "severity": g.severity}
+            for g in found[1:]] if found else rules[1:]
+    out = {**proposal, "rules": [first, *more], "guardrails": [first, *more], "quote": text, "reason": text,
+           "when": first.get("when", proposal.get("when", "")), "then": first.get("then", proposal.get("then", ""))}
+    out["title"] = wording.say(work_map.language, "rule_text", when=out["when"], then=out["then"])
+    return out
 
 
 class ProposalChangeBody(BaseModel):
@@ -1446,11 +1545,13 @@ def change_proposal(body: ProposalChangeBody) -> dict:
     if block is None:
         raise HTTPException(status_code=404, detail="No such proposal.")
     proposal = dict(block["content"])
-    if body.reason is not None and body.reason.strip():
+    if proposal.get("kind") == "rule" and body.reason is not None and body.reason.strip():
+        proposal = _reworded(work_map, proposal, body.reason.strip())
+    elif body.reason is not None and body.reason.strip():
         proposal["reason"] = body.reason.strip()
         if body.title is None:
             proposal["title"] = absorb.title_for(proposal["reason"], "", limit=140)
-    if body.title is not None and body.title.strip():
+    if body.title is not None and body.title.strip() and proposal.get("kind") != "rule":
         proposal["title"] = body.title.strip()
     proposal["edited"] = True
     memory.put("open", f"proposal-{body.proposal_id}", proposal)
@@ -1464,6 +1565,7 @@ class ProvenanceBody(BaseModel):
 
 
 @router.post("/provenance")
+@writes_map
 def check_provenance(body: ProvenanceBody) -> dict:
     """
     Look every learned rule up against the world.
@@ -1574,6 +1676,7 @@ class ContentsBody(BaseModel):
 
 
 @router.post("/contents")
+@writes_map
 def set_contents(body: ContentsBody) -> dict:
     """
     The guardian orders the knowledge top to bottom and groups steps into sections, before
@@ -1826,6 +1929,7 @@ class ReaskBody(BaseModel):
 
 
 @router.post("/reask")
+@writes_map
 def reask(body: ReaskBody) -> dict:
     """
     A case the guardian already answered, put to them again, because the teach-back showed
@@ -1861,6 +1965,7 @@ class ForgetRuleBody(BaseModel):
 
 
 @router.post("/forget-rule")
+@writes_map
 def forget_rule(body: ForgetRuleBody) -> dict:
     """
     A rule the guardian did not give, or gave twice, taken out of their map, with the cases
@@ -1877,7 +1982,12 @@ def forget_rule(body: ForgetRuleBody) -> dict:
                       for s in work_map.steps]
     work_map.confirmed_at = None
     get_maps().save(work_map)
-    _clear_teach_back(work_map)
+    # Set aside too, or the next look at the notes proposes it again. Measured live on 2026-10-15: a
+    # rule removed came back as a proposal, and "save this" then asked which one instead of saving.
+    memory = get_working().load(work_map.organisation, work_map.map_id)
+    _set_aside(work_map, memory, f"rule-{gone[:10]}", {"guardrail_id": gone})
+    _clear_teach_back(work_map, memory)
+    get_working().save(work_map.organisation, work_map.map_id, memory)
     return {"removed": True, "teachable": work_map.is_teachable, "why_not": work_map.why_not_teachable()}
 
 
@@ -1981,6 +2091,7 @@ def _archive_cited(work_map) -> None:
 
 
 @router.post("/confirm")
+@writes_map
 def confirm(body: ConfirmBody):
     """
     The expert says yes, that is how it works, or says what is wrong.
@@ -2133,6 +2244,7 @@ class PrecedentBody(BaseModel):
 
 
 @router.post("/precedent")
+@writes_map
 def add_precedent(body: PrecedentBody) -> dict:
     """
     Someone with authority decided a case the tutor stopped.
