@@ -208,6 +208,28 @@ def test_passages_that_do_not_answer_pass_the_question_on_rather_than_cite_thems
     assert progress.open_questions(ORG, BODY)[0]["question"] == question
 
 
+def test_a_covered_question_found_unanswered_once_is_read_again_before_the_guardian_is_asked(monkeypatch, tmp_path):
+    """Measured on 2026-10-15: a covered question (its passage at 0.903) was found unanswered once in six,
+    and went to the guardian; after an uncovered question, an answerable one twice in six."""
+    lib = store.MemoryKnowledgeStore()
+    lib.publish(community())
+    progress = Questions(str(tmp_path / "q"))
+    replies = iter(["NO_ANSWER", "Under ten registrations, the meetup moves to the smaller room [1]."])
+    calls = []
+    monkeypatch.setattr(answering, "call_main_model", lambda *a, **k: calls.append(k) or next(replies))
+    monkeypatch.setattr(answering, "MIN_SCORE", 0.0)
+    question = "when do you move the meetup registrations"
+    result = answering.answer(_turn(monkeypatch, question), question=question, body_id=BODY,
+                              allowed=("public",), store=Reader(lib, ORG), questions=Asking(progress, ORG), guardian="Ezekias")
+    assert result["kind"] in ("worded", "extractive") and not result["passed_on"] and len(calls) == 2
+    assert progress.open_questions(ORG, BODY) == [], "not passed on"
+    assert all(k.get("temperature") == 0.0 for k in calls), "worded the same way each time it is asked"
+
+
+def test_the_learners_memory_never_decides_whether_the_passages_answer():
+    assert "never decides whether the passages" in answering._SYSTEM
+
+
 def test_an_answer_needs_a_validated_turn():
     with pytest.raises(PermissionError):
         answering.answer(None, question="q", body_id=BODY, allowed=("public",), store=None,
