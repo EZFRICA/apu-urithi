@@ -61,6 +61,10 @@ const STRINGS = {
     resumePart: (t) => `Continue where you were: ${t}`, foundHard: "You found these hard",
     notebookTitle: "Your notebook", sheetScreen: "Revision sheet", sheetBraille: "Revision sheet in braille",
     noBraille: "Braille is not available on this machine.", forget: "Remove",
+    rememberedTitle: "What Urithi remembers about you",
+    rememberedLead: "Only what is about you or this knowledge reaches its answers. Remove anything you do not want kept.",
+    aboutYou: "About you, for every knowledge", aboutThis: "About this knowledge", aboutOther: "About another knowledge, not used here",
+    fromSaid: (said) => `From what you said: “${said}”`, forgetMemory: (what) => `Remove: ${what}`,
     evidenceFrom: (name, where) => `${name}, ${where}: `,
     cachedNote: "Answered before, from the same version of this knowledge.",
     steppedNote: "Given in the guardian's own words while worded answers are paused.",
@@ -151,6 +155,10 @@ const STRINGS = {
     resumePart: (t) => `Reprendre où tu en étais : ${t}`, foundHard: "Tu as trouvé ceci difficile",
     notebookTitle: "Ton carnet", sheetScreen: "Fiche de révision", sheetBraille: "Fiche de révision en braille",
     noBraille: "Le braille n'est pas disponible sur cette machine.", forget: "Retirer",
+    rememberedTitle: "Ce dont Urithi se souvient sur toi",
+    rememberedLead: "Seul ce qui te concerne ou concerne ce savoir sert à ses réponses. Retire ce que tu ne veux pas garder.",
+    aboutYou: "Sur toi, pour tous les savoirs", aboutThis: "Sur ce savoir", aboutOther: "Sur un autre savoir, pas utilisé ici",
+    fromSaid: (said) => `D'après ce que tu as dit : « ${said} »`, forgetMemory: (what) => `Retirer : ${what}`,
     evidenceFrom: (name, where) => `${name}, ${where} : `,
     cachedNote: "Déjà répondu, sur la même version de ce savoir.",
     steppedNote: "Donné avec les mots du gardien pendant que les réponses formulées sont en pause.",
@@ -611,6 +619,7 @@ class Learn {
     this.renderContents();
     this.loadSession();
     this.loadNotebook();
+    this.loadRemembered();
     $("answer").hidden = true;
     this.say(`${path.body.name}. ${$("path-lead").textContent}`);
     this.refreshQuestions();
@@ -1315,6 +1324,36 @@ class Learn {
       list.appendChild(li);
     }
     $("notebook").hidden = !reply.entries.length;
+  }
+
+  // What the memory holds about this learner, readable and removable by them (apu/mmu, decision 0015).
+  async loadRemembered() {
+    if (this.path?.source !== "server") { $("remembered").hidden = true; return; }
+    const bodyId = this.path.body.body_id;
+    const reply = await this.api(`memory?${this.q({ body_id: bodyId })}`).catch(() => ({ blocks: [] }));
+    const list = $("remembered-list");
+    list.innerHTML = "";
+    for (const block of reply.blocks) {
+      const li = document.createElement("li");
+      const text = document.createElement("span");
+      text.textContent = block.content;
+      const about = document.createElement("span");
+      about.className = "note";
+      about.textContent = block.knowledge_id ? (block.in_context ? this.t("aboutThis") : this.t("aboutOther")) : this.t("aboutYou");
+      if (block.source?.said) about.textContent += ` · ${this.t("fromSaid", block.source.said)}`;
+      const forget = document.createElement("button");
+      forget.type = "button";
+      forget.className = "quiet small";
+      forget.textContent = this.t("forget");
+      forget.setAttribute("aria-label", this.t("forgetMemory", block.content.slice(0, 80)));
+      forget.addEventListener("click", async () => {
+        await fetch(`/api/learner/memory/${encodeURIComponent(block.block_id)}?${this.q({})}`, { method: "DELETE" });
+        this.loadRemembered();
+      });
+      li.append(text, document.createElement("br"), about, forget);
+      list.appendChild(li);
+    }
+    $("remembered").hidden = !reply.blocks.length;
   }
 
   async showSheet(braille) {

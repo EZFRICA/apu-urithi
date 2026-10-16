@@ -108,12 +108,14 @@ def list_people() -> dict:
 
 
 @router.get("/search")
-def search(q: str, person_id: str, k: int = 5, body_id: str | None = None, organisation: str | None = None) -> dict:
-    """What this person may see that is closest to the question, with what it rests on."""
+def search(q: str, person_id: str, k: int = 5, body_id: str | None = None, organisation: str | None = None,
+           lang: str | None = None) -> dict:
+    """What this person may see that is closest to the question, with what it rests on; the question's
+    own words count too when it is asked in the knowledge's language (library/keywords.py)."""
     who = _who(person_id, organisation)
     if not q.strip():
         raise HTTPException(status_code=422, detail="Nothing to search for.")
-    results = get_reader(who.organisation).search(q, who.allowed, k=max(1, min(k, 20)), body_id=body_id)
+    results = get_reader(who.organisation).search(q, who.allowed, k=max(1, min(k, 20)), body_id=body_id, lang=lang)
     return {"results": results, "as": who.name, "access": who.access, "simulated": access.SIMULATED}
 
 
@@ -389,11 +391,12 @@ def hear(body: HearBody) -> dict:
         raise HTTPException(status_code=503, detail=str(error)) from error
 
 
-def _write_back_mmu(who: access.Person, question: str, reply_text: str) -> None:
-    """Update the learner's MMU after the HTTP reply is sent."""
+def _write_back_mmu(who: access.Person, question: str, reply_text: str, body_id: str | None = None) -> None:
+    """Update the learner's MMU after the HTTP reply is sent, on the knowledge it was asked on: written in the
+    background, it is not left to whichever knowledge is in view by then."""
     principal = meter.Principal(who.organisation, who.person_id, who.role)
     with meter.acting_as(principal):
-        get_learner_mmu().write_back(who.organisation, who.person_id, question, reply_text)
+        get_learner_mmu().write_back(who.organisation, who.person_id, question, reply_text, knowledge_id=body_id)
 
 
 @router.post("/ask")
@@ -437,9 +440,9 @@ def ask(body: AskBody, background_tasks: BackgroundTasks = None) -> dict:
                   memory_context=memory_context)
     path_info = _on_the_path(found, result, who, body)
     if background_tasks is not None:
-        background_tasks.add_task(_write_back_mmu, who, question, result.get("text", ""))
+        background_tasks.add_task(_write_back_mmu, who, question, result.get("text", ""), body.body_id)
     else:
-        _write_back_mmu(who, question, result.get("text", ""))
+        _write_back_mmu(who, question, result.get("text", ""), body.body_id)
     return {**result, **path_info, "warning": budget.warning, "simulated": access.SIMULATED}
 
 
@@ -527,6 +530,22 @@ def notebook(person_id: str, body_id: str | None = None, organisation: str | Non
 def forget_entry(entry_id: str, person_id: str, organisation: str | None = None) -> dict:
     who = _who(person_id, organisation)
     return {"forgotten": get_learner_memory().forget(who.organisation, who.person_id, entry_id)}
+
+
+@router.get("/memory")
+def remembered(person_id: str, organisation: str | None = None, body_id: str | None = None) -> dict:
+    """What Urithi remembers about this learner, as they can read it: each block's words, which knowledge it is
+    about, what they said that it came from, and whether it reaches answers on this knowledge."""
+    who = _who(person_id, organisation)
+    return {"blocks": get_learner_mmu().blocks(who.organisation, who.person_id, knowledge_id=body_id),
+            "simulated": access.SIMULATED}
+
+
+@router.delete("/memory/{block_id}")
+def forget_remembered(block_id: str, person_id: str, organisation: str | None = None) -> dict:
+    """The learner removes one thing remembered about them; it no longer reaches any answer."""
+    who = _who(person_id, organisation)
+    return {"forgotten": get_learner_mmu().forget_block(who.organisation, who.person_id, block_id)}
 
 
 @router.get("/notebook/sheet/{body_id}")
