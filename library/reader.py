@@ -37,8 +37,8 @@ class Reader:
     def bodies_for(self, allowed) -> list[dict]:
         return self._store.bodies_for(self._organisation, allowed)
 
-    def search(self, query: str, allowed, k: int = 5, body_id: str | None = None) -> list[dict]:
-        return self._store.search(self._organisation, query, allowed, k=k, body_id=body_id)
+    def search(self, query: str, allowed, k: int = 5, body_id: str | None = None, lang: str | None = None) -> list[dict]:
+        return self._store.search(self._organisation, query, allowed, k=k, body_id=body_id, lang=lang)
 
     def body_units(self, body_id: str, allowed) -> dict | None:
         stamp_of = getattr(self._store, "stamp_of", None)

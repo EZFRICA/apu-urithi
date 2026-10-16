@@ -156,8 +156,14 @@ def test_every_neo4j_query_filters_on_the_organisation():
         source = inspect.getsource(getattr(store.Neo4jKnowledgeStore, name))
         assert "$org" in source, name
     search = inspect.getsource(store.Neo4jKnowledgeStore.search)
-    index_filter = search[search.index("VECTOR INDEX"):search.index("LIMIT $k")]
-    assert "u.organisation = $org" in index_filter
+    eligible = search[search.index("eligible = "):search.index("\n", search.index("eligible = "))]
+    assert '"u.organisation = $org AND u.status = $published AND u.access IN $allowed"' in eligible
+    # The one filter, inside the vector index, on what the words found, and on what is read for it.
+    index_filter = search[search.index("VECTOR INDEX"):search.index("LIMIT $n")]
+    assert '"WHERE " + eligible' in index_filter
+    assert 'WHERE " + eligible' in search[search.index("UNWIND $ids"):]
+    words = search[search.index('CALL () { MATCH (u:Unit)'):]
+    assert words.index('WHERE " + eligible') < words.index("AS texts")
     assert "u.organisation" in inspect.getsource(store.Neo4jKnowledgeStore.ensure_schema)
 
 
