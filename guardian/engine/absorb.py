@@ -102,6 +102,12 @@ def find_guardrails(said: str, at: float, language: str = "en",
     rails = []
     for item in found:
         when, then = _whole_rule(said, _clause(item.get("when", "")), _clause(item.get("then", "")))
+        # Two readings that fall back on the same sentence of theirs are that sentence once, one rule said
+        # once. Measured live on 2026-10-16: "Before watering, we push a finger into the soil, so we only
+        # water the beds that are really dry" became two rules in 3 runs of 5, the whole sentence under two
+        # invented conditions ("really dry", "not really dry"), and "save this" asked which.
+        if any(r.then.lower() == then.lower() for r in rails):
+            continue
         try:
             rails.append(Guardrail(
                 guardrail_id=str(uuid.uuid4()),
