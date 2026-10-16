@@ -637,3 +637,49 @@ def test_a_rule_removed_from_the_map_is_not_proposed_again(guardian, monkeypatch
     assert all(p.get("guardrail_id") != "g-rain" for p in _proposals(client, work_map))
     memory = get_working().load(work_map.organisation, work_map.map_id)
     assert memory.find("rule-g-rain") is None, "not kept as a noted rule either"
+
+
+def test_a_debrief_answer_saved_as_a_case_is_not_proposed_again_as_a_step(guardian, monkeypatch):
+    """Measured live on 2026-10-15: a debrief answer saved as a case came back as a step proposal 2 times
+    in 2 once a rule was said next, "save this" was ambiguous, and saving it made a step of Urithi's
+    question. A note saved in any form is not judged again."""
+    client, work_map = guardian
+    said = "Yes, both apply: the invoice goes back to the buyer first."
+    question = "Say both happen at once: an invoice is coded, and it has no purchase order. What do you do first?"
+    memory = get_working().load(work_map.organisation, work_map.map_id)
+    memory.put("recent", "note-n-case", {"note_id": "n-case", "kind": "debrief", "text": said, "title": question})
+    get_working().save(work_map.organisation, work_map.map_id, memory)
+    _propose(work_map, {"proposal_id": "n-case", "kind": "case", "origin": "debrief", "title": question, "reason": said,
+                        "ruling": {"ruling_id": "r-case", "guardrail_id": "stop1", "kind": "collision", "case": {},
+                                   "question": question, "said": said, "applies": None}})
+    saved = client.post("/api/guardian/save", json={"map_id": work_map.map_id, "proposal_id": "n-case"}).json()
+    assert saved["saved_kind"] == "case"
+
+    judged_notes: list = []
+
+    def every_note_a_step(work_map, notes, noted_rules, **k):    # the judge as it was measured: any note may come back
+        judged_notes.extend(n.get("note_id") for n in notes)
+        return [_step(n["note_id"], n["text"]) for n in notes]
+    monkeypatch.setattr(absorb, "judge_proposals", every_note_a_step)
+    memory = get_working().load(work_map.organisation, work_map.map_id)
+    memory.put("recent", "note-n-next", {"note_id": "n-next", "kind": "tell", "text": "When it is from abroad, use reverse charge."})
+    out = routes._refresh_proposals(get_maps().load(work_map.map_id), memory)
+    assert "n-case" not in judged_notes and "n-next" in judged_notes
+    assert all(p["proposal_id"] != "n-case" for p in out), "the case's note is not a step to save"
+
+
+def test_a_proposal_judged_while_its_note_was_saved_as_a_case_is_not_replayed(tmp_path):
+    """A refresh now reads which notes are saved: one judged before a case was saved from its note is judged
+    from an older list, and replaying it would bring the note back as a step."""
+    store = SqliteWorkingMemories(str(tmp_path / "wm.sqlite3"))
+    first = store.load("urithi", "m")
+    first.put("recent", "note-n1", {"note_id": "n1", "kind": "debrief", "text": "Yes, both apply."})
+    store.save("urithi", "m", first)
+    judging, saving = store.load("urithi", "m"), store.load("urithi", "m")
+    saving.put("retained", "saved-case-r1", {"note_id": "n1"})
+    store.save("urithi", "m", saving)
+    with judging.derived():                          # judged before the case was saved
+        judging.put("open", "proposal-n1", {"proposal_id": "n1", "kind": "step"})
+    store.save("urithi", "m", judging)
+    now = store.load("urithi", "m")
+    assert now.find("proposal-n1") is None and now.find("saved-case-r1") is not None

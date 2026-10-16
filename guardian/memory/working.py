@@ -37,7 +37,7 @@ from guardian import config
 
 KINDS = ("recent", "open", "retained")
 MAX_BLOCKS = 200
-JUDGED_FROM = ("note-", "proposal-", "ignored-", "rule-")   # what derived changes are judged from
+JUDGED_FROM = ("note-", "proposal-", "ignored-", "rule-", "saved-")   # what derived changes are judged from
 
 
 def _judged_from(data: dict | None) -> str:
