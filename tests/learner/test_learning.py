@@ -511,3 +511,18 @@ def test_quotations_are_paired_by_their_own_marks():
     assert answering.check("Il faut « an hour » [2]. « The h in hour and honest is silent » [1].", cites)
     assert not answering.check('He said "the h in hour is always spoken aloud" [1].', cites), \
         "a long quotation still has to be the guardian's words"
+
+
+def test_the_learner_s_language_reaches_the_search(monkeypatch, tmp_path):
+    """The question's words are ranked only in the knowledge's language (library/keywords.py): the search
+    has to be told which language the learner asks in."""
+    seen = {}
+
+    class Store:
+        def search(self, question, allowed, **k):
+            seen.update(k)
+            return []
+    question = "quand déplace-t-on le meetup"
+    answering.answer(_turn(monkeypatch, question), question=question, body_id=BODY, allowed=("public",), store=Store(),
+                     questions=Asking(Questions(str(tmp_path / "q")), ORG), guardian="Ezekias", language="fr")
+    assert seen.get("lang") == "fr" and seen.get("body_id") == BODY

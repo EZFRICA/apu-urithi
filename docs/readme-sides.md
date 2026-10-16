@@ -65,6 +65,11 @@ version, and the learner's page says so.
   may see and only shown if every sentence cites the guardian. A question with no answer is
   passed to the guardian; the learner's device keeps a ticket, the only thing that ties the
   question to them, and the page says when the guardian has answered, and in which version.
+  Within a knowledge, the parts that answer are found by meaning and, in the knowledge's own
+  language, by the question's words (decision 0017).
+- **Sees what Urithi remembers about them.** Each thing kept says which knowledge it is about and
+  what they said that it came from; only what is about them or this knowledge reaches its answers,
+  and they remove anything they do not want kept.
 - **Learns offline.** "Keep for offline" stores a package: the parts this person may see, with
   braille and audio rendered when it was built, a content hash and the embedding model's
   identity. Reading, listening, braille and practice work with no network; reviews made
@@ -85,7 +90,7 @@ Four memories, kept apart (the boundaries are tests):
 | **[A] evidence** | what was said and shown, verbatim | `guardian/data/` and Cloud Storage when cited |
 | **[B] knowledge** | the library: units, links, decided cases, sources | **Neo4j**, a graph with a vector index |
 | **[C] guardian memory** | working memory per knowledge, and the guardian's APU MMU (L1 cache, L2 DLL, L3 LanceDB, BMJ, page-in, learned threshold) | `guardian/data/` |
-| **[D] learner memory** | the learner's APU MMU (session, knowledge in view, preferences), FSRS reviews, notebook; the question box in `exchange/` | `learner/data/` and `exchange/data/` |
+| **[D] learner memory** | the learner's APU MMU (session, knowledge in view, preferences), kept per knowledge and readable by the learner, FSRS reviews, notebook; the question box in `exchange/` | `learner/data/` and `exchange/data/` |
 
 **Access is decided before retrieval, never after generation.** The access filter runs inside
 Neo4j's vector index (`SEARCH ... WHERE u.access IN $allowed`), so a part a learner may not

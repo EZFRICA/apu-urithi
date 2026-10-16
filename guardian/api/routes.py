@@ -196,6 +196,9 @@ def _refresh_proposals(work_map, memory, *, use_model: bool = True) -> list[dict
     # Found in the review of 2026-10-14: an edited step was dropped here and its wording lost
     # whenever the judge chose another note.
     kept_rules = set()
+    # A note already saved, as a step or a case, is not judged again whatever its wording.
+    saved_from = {str((b.get("content") or {}).get("note_id") or "") for b in memory.of_kind("retained", "saved-")}
+    notes = [n for n in notes if str(n.get("note_id") or "") not in saved_from]
     judged = absorb.judge_proposals(work_map, notes, noted_rules, use_model=use_model)
     out: list[dict] = []
     with memory.derived():
@@ -1318,6 +1321,10 @@ def save_proposal(body: SaveBody) -> dict:
         get_maps().save(work_map)
         if proposal.get("proposal_id"):
             memory.drop(f"proposal-{proposal['proposal_id']}")
+            # Which note the case was saved from, as for a step: a note saved in any form is not proposed
+            # again. Measured live on 2026-10-15: a debrief answer saved as a case came back as a step
+            # 2 times in 2 once a rule was said next, and saving it made a step of Urithi's question.
+            memory.put("retained", f"saved-case-{ruling.ruling_id}", {"note_id": proposal["proposal_id"]})
             get_working().save(work_map.organisation, work_map.map_id, memory)
         tb = _record_teach_back(work_map, probe.teach_back(work_map))
         msg = "Cas enregistré." if work_map.language == "fr" else "Saved case."

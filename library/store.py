@@ -6,7 +6,8 @@ Both implement one contract, and the tests hold both to it:
     reads half of an old version and half of a new one;
   - search() filters by access level and status INSIDE the vector search, before any
     ranking reaches the caller: a unit a learner may not see is not in the result, however
-    close it is to the question, so it can never reach a model;
+    close it is to the question, so it can never reach a model; within one knowledge, the words
+    of a question asked in its language are ranked too (library/keywords.py), under the same filter;
   - what comes back with a unit (its prerequisites, the cases that decide it) is filtered
     by the same levels: a case reveals the units it decides;
   - withdraw() removes a body and everything hanging from it;
@@ -21,11 +22,13 @@ from apu import config
 from apu.embeddings import get_embedder
 from apu.logger import get_logger
 from library import config as library_config
+from library import keywords
 from library.model import ACCESS_LEVELS, LINK_TYPES, KnowledgeError, Publication, check_organisation
 
 logger = get_logger(__name__)
 
 PUBLISHED = "published"
+CANDIDATES = 20       # read by meaning and by words before the two rankings are fused and cut to k
 
 
 def _check_allowed(allowed) -> list[str]:
@@ -64,16 +67,24 @@ class MemoryKnowledgeStore:
         return [{**b["body"], "units": sum(1 for u in b["units"] if u["access"] in allowed)}
                 for b in self._of(organisation)]
 
-    def search(self, organisation: str, query: str, allowed, k: int = 5, body_id: str | None = None) -> list[dict]:
+    def search(self, organisation: str, query: str, allowed, k: int = 5, body_id: str | None = None,
+               lang: str | None = None) -> list[dict]:
         allowed = _check_allowed(allowed)
         q = get_embedder().embed([query])[0]
         eligible = [(u, b) for b in self._of(organisation) for u in b["units"]
                     if u["status"] == PUBLISHED and u["access"] in allowed
                     and (body_id is None or u["body_id"] == body_id)]
-        ranked = sorted(eligible, key=lambda ub: -sum(x * y for x, y in zip(q, ub[0]["embedding"])))
+        cosine = {u["unit_id"]: sum(x * y for x, y in zip(q, u["embedding"])) for u, _ in eligible}
+        by_meaning = [u["unit_id"] for u, _ in sorted(eligible, key=lambda ub: -cosine[ub[0]["unit_id"]])]
+        # Words only within one knowledge, among what is eligible, taught in the question's language.
+        same = [(u, b) for u, b in eligible if body_id and keywords.same_language(lang, b["body"].get("language"))]
+        scores = keywords.bm25(query, [f"{u['text']}\n{u['quote']}" for u, _ in same])
+        by_words = [u["unit_id"] for (u, _), s in sorted(zip(same, scores), key=lambda us: -us[1]) if s > 0]
+        found = {u["unit_id"]: (u, b) for u, b in eligible}
+        ranked = [found[uid] for uid in keywords.fuse(by_meaning, by_words)]
         results = []
         for unit, body in ranked[:k]:
-            score = sum(x * y for x, y in zip(q, unit["embedding"]))
+            score = cosine[unit["unit_id"]]
             visible = {u["unit_id"]: u for u in body["units"] if u["access"] in allowed}
             results.append({
                 "unit": _public(unit), "score": round(score, 4), "guardian": body["body"]["guardian"],
@@ -115,6 +126,16 @@ class MemoryKnowledgeStore:
 
     def withdraw(self, organisation: str, body_id: str) -> bool:
         return self.bodies.pop((check_organisation(organisation), body_id), None) is not None
+
+
+def _ranked_by_words(query: str, lang: str, texts: list[dict]) -> list[str]:
+    """Unit ids of one knowledge by the question's words (BM25, library/keywords.py), as the memory store ranks them.
+
+    Not by a full-text index: measured on 2026-10-15, Neo4j's index scored the text and the quote apart and
+    lost the gain measured (30 first in 38 either way, against 32 ranked here)."""
+    same = [t for t in texts if keywords.same_language(lang, t["language"])]
+    scores = keywords.bm25(query, [f"{t['text']}\n{t['quote']}" for t in same])
+    return [t["id"] for t, s in sorted(zip(same, scores), key=lambda ts: -ts[1]) if s > 0]
 
 
 class Neo4jKnowledgeStore:
@@ -227,28 +248,42 @@ class Neo4jKnowledgeStore:
                           org=organisation, allowed=allowed)
         return [{**r["body"], "units": r["units"]} for r in rows]
 
-    def search(self, organisation: str, query: str, allowed, k: int = 5, body_id: str | None = None) -> list[dict]:
+    # What comes with each unit found, filtered by the same levels; shared by both ways of finding it.
+    _WITH_UNIT = (
+        "MATCH (u)-[:BELONGS_TO]->(b:Body) "
+        "OPTIONAL MATCH (p:Unit)-[:PREREQUISITE_OF]->(u) WHERE p.access IN $allowed "
+        "WITH u, score, b, collect(DISTINCT p{.unit_id, .text}) AS prerequisites "
+        "OPTIONAL MATCH (c:Case)-[:DECIDES]->(u) WHERE c.access IN $allowed "
+        "WITH u, score, b, prerequisites, collect(DISTINCT c{.*}) AS cases "
+        # By type name in a WHERE, not in the pattern: a pattern naming a type the database
+        # has never held draws a warning on every search until one exists.
+        "OPTIONAL MATCH (s:Source)-[r]->(u) WHERE type(r) IN ['SUPPORTS', 'DISAGREES'] "
+        "RETURN u{.*, embedding: null} AS unit, score, b.guardian AS guardian, prerequisites, "
+        "cases, collect(DISTINCT s{.*}) AS sources ORDER BY score DESC")
+
+    def search(self, organisation: str, query: str, allowed, k: int = 5, body_id: str | None = None,
+               lang: str | None = None) -> list[dict]:
         organisation = check_organisation(organisation)
         allowed = _check_allowed(allowed)
         self.ensure_schema()
         q = get_embedder().embed([query])[0]
         body_filter = " AND u.body_id = $body_id" if body_id else ""
-        cypher = (
-            "CYPHER 25 MATCH (u) SEARCH u IN (VECTOR INDEX " + self.INDEX + " FOR $q "
-            "WHERE u.organisation = $org AND u.status = $published AND u.access IN $allowed" + body_filter +
-            " LIMIT $k) SCORE AS score "
-            "MATCH (u)-[:BELONGS_TO]->(b:Body) "
-            "OPTIONAL MATCH (p:Unit)-[:PREREQUISITE_OF]->(u) WHERE p.access IN $allowed "
-            "WITH u, score, b, collect(DISTINCT p{.unit_id, .text}) AS prerequisites "
-            "OPTIONAL MATCH (c:Case)-[:DECIDES]->(u) WHERE c.access IN $allowed "
-            "WITH u, score, b, prerequisites, collect(DISTINCT c{.*}) AS cases "
-            # By type name in a WHERE, not in the pattern: a pattern naming a type the database
-            # has never held draws a warning on every search until one exists.
-            "OPTIONAL MATCH (s:Source)-[r]->(u) WHERE type(r) IN ['SUPPORTS', 'DISAGREES'] "
-            "RETURN u{.*, embedding: null} AS unit, score, b.guardian AS guardian, prerequisites, "
-            "cases, collect(DISTINCT s{.*}) AS sources ORDER BY score DESC")
+        eligible = "u.organisation = $org AND u.status = $published AND u.access IN $allowed" + body_filter
+        params = {"q": q, "org": organisation, "published": PUBLISHED, "allowed": allowed, "body_id": body_id,
+                  "n": max(k, CANDIDATES)}
+        by_meaning = ("MATCH (u) SEARCH u IN (VECTOR INDEX " + self.INDEX + " FOR $q "
+                      "WHERE " + eligible + " LIMIT $n) SCORE AS score " + self._WITH_UNIT)
+        words_too = bool(lang and body_id)
+        # Within one knowledge, its parts' words are read in the same query: measured on Aura on 2026-10-15, a
+        # second query took the median search from 410 to 813 ms.
+        cypher = ("CYPHER 25 " + by_meaning if not words_too else
+                  "CYPHER 25 CALL () { " + by_meaning + " } WITH collect({unit: unit, score: score, guardian: guardian, "
+                  "prerequisites: prerequisites, cases: cases, sources: sources}) AS rows "
+                  "CALL () { MATCH (u:Unit)-[:BELONGS_TO]->(b:Body) WHERE " + eligible +
+                  " RETURN collect({id: u.unit_id, text: u.text, quote: u.quote, language: b.language}) AS texts } "
+                  "RETURN rows, texts")
         try:
-            rows = self._read(cypher, q=q, org=organisation, published=PUBLISHED, allowed=allowed, k=k, body_id=body_id)
+            found = self._read(cypher, **params)
         except Exception:
             # Measured on Aura: a filtered vector search that no unit matches (an organisation
             # with nothing published, a body withdrawn) failed inside the database, "Index
@@ -260,9 +295,20 @@ class Neo4jKnowledgeStore:
             if left and left[0]["n"] == 0:
                 return []
             raise
+        rows = (found[0]["rows"] if found else []) if words_too else found
+        by_id = {r["unit"]["unit_id"]: r for r in rows}
+        by_words = _ranked_by_words(query, lang, found[0]["texts"]) if words_too and found else []
+        order = keywords.fuse([r["unit"]["unit_id"] for r in rows], by_words)[:k]
+        missing = [uid for uid in order if uid not in by_id]
+        if missing:
+            # Found by its words alone: read with its meaning's score, under the same filter as any other.
+            for r in self._read("UNWIND $ids AS id MATCH (u:Unit {organisation: $org, unit_id: id}) WHERE " + eligible +
+                                " WITH u, vector.similarity.cosine(u.embedding, $q) AS score " + self._WITH_UNIT,
+                                ids=missing, **params):
+                by_id[r["unit"]["unit_id"]] = r
         return [{"unit": _public(r["unit"]), "score": round(r["score"], 4), "guardian": r["guardian"],
                  "prerequisites": r["prerequisites"], "cases": [_case(c) for c in r["cases"]],
-                 "sources": [_source(src) for src in r["sources"]]} for r in rows]
+                 "sources": [_source(src) for src in r["sources"]]} for uid in order for r in [by_id.get(uid)] if r]
 
     def body_units(self, organisation: str, body_id: str, allowed) -> dict | None:
         organisation = check_organisation(organisation)

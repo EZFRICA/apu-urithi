@@ -1524,3 +1524,20 @@ def test_a_rule_keeps_what_the_guardian_forbids_even_when_the_extractor_drops_it
         '"then":"announce in #members only and never in #announcements","severity":"check"}]}'))
     [rule] = absorb.find_guardrails(said, at=3.0)
     assert rule.then == "announce in #members only and never in #announcements", "a whole reading is kept as read"
+
+
+def test_two_readings_of_one_sentence_falling_back_on_it_are_one_rule(monkeypatch):
+    """Measured live on 2026-10-16: "Before watering, we push a finger into the soil, so we only water the beds
+    that are really dry" came back as two rules in 3 runs of 5: both readings lost "only", both fell back on
+    the whole sentence under an invented condition, and "save this" asked which of the two to save."""
+    said = "Before watering, we push a finger into the soil, so we only water the beds that are really dry."
+    monkeypatch.setattr(absorb, "call_extraction_model", lambda *a, **k: (
+        '{"guardrails":[{"when":"a finger shows the beds are really dry","then":"water the beds","severity":"check"},'
+        '{"when":"a finger shows the beds are not really dry","then":"do not water","severity":"check"}]}'))
+    [rule] = absorb.find_guardrails(said, at=1.0)
+    assert "only water the beds that are really dry" in rule.then, "the guardian's words, once"
+    monkeypatch.setattr(absorb, "call_extraction_model", lambda *a, **k: (
+        '{"guardrails":[{"when":"it rains","then":"we stay inside","severity":"check"},'
+        '{"when":"the hall is booked","then":"we meet in the garden shed","severity":"check"}]}'))
+    assert len(absorb.find_guardrails("When it rains, we stay inside. When the hall is booked, we meet in the garden shed.",
+                                      at=1.0)) == 2, "two rules said are two rules"

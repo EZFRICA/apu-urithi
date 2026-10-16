@@ -1,0 +1,356 @@
+{
+ "_comment": "Labelled questions for scripts/measure_search.py, written on 2026-10-15 before the fusion was built. Each: language, question, the parts that answer it (id prefixes). The a_or_an parts are read from the library (Ezekias's published knowledge); the others are fictional and kept here.",
+ "knowledges": {
+  "a_or_an": {
+   "body_id": "ezekias--choosing-a-or-an-in-english",
+   "questions": [
+    [
+     "en",
+     "Do I write a or an before hour?",
+     [
+      "step-6",
+      "rule-73762877"
+     ]
+    ],
+    [
+     "en",
+     "a or an before useful?",
+     [
+      "rule-affd0d10"
+     ]
+    ],
+    [
+     "en",
+     "Which article goes before university?",
+     [
+      "rule-affd0d10"
+     ]
+    ],
+    [
+     "en",
+     "What do I write before a word that begins with a vowel sound, like apple?",
+     [
+      "step-3",
+      "rule-04d98bca"
+     ]
+    ],
+    [
+     "en",
+     "What about words that start with a consonant sound?",
+     [
+      "step-4",
+      "rule-8031ab16"
+     ]
+    ],
+    [
+     "en",
+     "How do I choose before a number like 8 or 11?",
+     [
+      "step-7",
+      "rule-d377640d"
+     ]
+    ],
+    [
+     "en",
+     "Is it a FBI agent or an FBI agent?",
+     [
+      "step-5",
+      "rule-a932c048"
+     ]
+    ],
+    [
+     "en",
+     "What about NASA, which is read as a word?",
+     [
+      "rule-5d7e3a58"
+     ]
+    ],
+    [
+     "en",
+     "I am not sure how a word sounds, what should I do?",
+     [
+      "step-2",
+      "rule-f49fa13f"
+     ]
+    ],
+    [
+     "en",
+     "Should I look at the first letter of the next word?",
+     [
+      "step-1"
+     ]
+    ],
+    [
+     "en",
+     "an heir or a heir?",
+     [
+      "step-6",
+      "rule-73762877"
+     ]
+    ],
+    [
+     "en",
+     "a or an before European?",
+     [
+      "rule-affd0d10",
+      "rule-8031ab16",
+      "step-4"
+     ]
+    ],
+    [
+     "en",
+     "an MRI scan or a MRI scan?",
+     [
+      "step-5",
+      "rule-a932c048"
+     ]
+    ],
+    [
+     "fr",
+     "Faut-il écrire a ou an devant hour ?",
+     [
+      "step-6",
+      "rule-73762877"
+     ]
+    ],
+    [
+     "fr",
+     "Que faire devant un nombre comme 8 ?",
+     [
+      "step-7",
+      "rule-d377640d"
+     ]
+    ],
+    [
+     "fr",
+     "Et pour une abréviation lue lettre par lettre ?",
+     [
+      "step-5",
+      "rule-a932c048"
+     ]
+    ],
+    [
+     "fr",
+     "Je ne sais pas comment se prononce un mot, que faire ?",
+     [
+      "step-2",
+      "rule-f49fa13f"
+     ]
+    ],
+    [
+     "fr",
+     "Quel article devant un mot qui commence par un son de voyelle ?",
+     [
+      "step-3",
+      "rule-04d98bca"
+     ]
+    ]
+   ]
+  },
+  "community": {
+   "units": [
+    {
+     "id": "step-1",
+     "text": "Announce the meetup on the public channel",
+     "quote": "I always announce a meetup two weeks ahead on the public channel."
+    },
+    {
+     "id": "step-2",
+     "text": "Confirm the speakers",
+     "quote": "Speakers confirm a week before, or the slot goes to the next one."
+    },
+    {
+     "id": "rule-cancel",
+     "text": "When fewer than ten people register, move the meetup.",
+     "quote": "Under ten registrations, I move the meetup rather than run it half empty."
+    },
+    {
+     "id": "rule-report",
+     "text": "When a code of conduct report is made, two organisers handle it.",
+     "quote": "A code of conduct report goes to two organisers only, never the whole team."
+    }
+   ],
+   "questions": [
+    [
+     "en",
+     "Where do we announce the meetup?",
+     [
+      "step-1"
+     ]
+    ],
+    [
+     "en",
+     "What do we do when few people sign up?",
+     [
+      "rule-cancel"
+     ]
+    ],
+    [
+     "en",
+     "Who deals with a code of conduct complaint?",
+     [
+      "rule-report"
+     ]
+    ],
+    [
+     "en",
+     "Do we confirm the speakers?",
+     [
+      "step-2"
+     ]
+    ],
+    [
+     "en",
+     "Someone reports harassment at our event; who handles it?",
+     [
+      "rule-report"
+     ]
+    ],
+    [
+     "en",
+     "Not many registrations so far, what now?",
+     [
+      "rule-cancel"
+     ]
+    ],
+    [
+     "fr",
+     "Que fait-on quand moins de dix personnes s'inscrivent ?",
+     [
+      "rule-cancel"
+     ]
+    ],
+    [
+     "fr",
+     "Qui traite un signalement au code de conduite ?",
+     [
+      "rule-report"
+     ]
+    ]
+   ]
+  },
+  "invoice": {
+   "units": [
+    {
+     "id": "step-1",
+     "text": "Post every invoice within five working days of receipt",
+     "quote": "Post every invoice within five working days of receipt."
+    },
+    {
+     "id": "step-2",
+     "text": "This screen shows an invoice of 6,650 euros for a CNC spindle, so it is coded as capital expenditure",
+     "quote": "This screen shows an invoice of 6,650 euros for a CNC spindle, so it is coded as capital expenditure."
+    },
+    {
+     "id": "rule-8f38203a-b736-44a5-bdde-3f0d7c1f988a",
+     "text": "When an invoice is coded, before coding an invoice, we match it to its purchase order, so we only pay for what was ordered.",
+     "quote": "Before coding an invoice, we match it to its purchase order, so we only pay for what was ordered."
+    },
+    {
+     "id": "rule-a52d51ed-acbf-4527-8f1f-e0d0b3869fd2",
+     "text": "When a single item costs more than 5,000 euros, record it as capital expenditure.",
+     "quote": "When a single item costs more than 5,000 euros, we record it as capital expenditure."
+    },
+    {
+     "id": "rule-8c0fbd40-7275-45f5-9348-5aa59d206303",
+     "text": "When an invoice has no purchase order, send it back to the buyer and never put it into the system.",
+     "quote": "An invoice with no purchase order goes back to the buyer, never into the system"
+    },
+    {
+     "id": "rule-10853c5e-6141-47d3-a5d8-b343fa38283b",
+     "text": "When an invoice is from another EU country, code it with the reverse charge VAT code so no VAT is paid to the supplier.",
+     "quote": "An invoice from another EU country is coded with the reverse charge VAT code, so no VAT is paid to the supplier."
+    }
+   ],
+   "questions": [
+    [
+     "en",
+     "What do I check before coding an invoice?",
+     [
+      "rule-8f38203a"
+     ]
+    ],
+    [
+     "en",
+     "How long do I have to post an invoice?",
+     [
+      "step-1"
+     ]
+    ],
+    [
+     "en",
+     "How do I record an item over 5,000 euros?",
+     [
+      "rule-a52d51ed",
+      "step-2"
+     ]
+    ],
+    [
+     "en",
+     "What if there is no purchase order?",
+     [
+      "rule-8c0fbd40"
+     ]
+    ],
+    [
+     "en",
+     "Which VAT code for a supplier in another EU country?",
+     [
+      "rule-10853c5e"
+     ]
+    ],
+    [
+     "en",
+     "Is a 6,650 euro spindle an ordinary expense?",
+     [
+      "step-2",
+      "rule-a52d51ed"
+     ]
+    ],
+    [
+     "en",
+     "The supplier is in Germany and we are in France: what tax treatment?",
+     [
+      "rule-10853c5e"
+     ]
+    ],
+    [
+     "fr",
+     "Que faire d'une facture sans bon de commande ?",
+     [
+      "rule-8c0fbd40"
+     ]
+    ],
+    [
+     "fr",
+     "Quel code TVA pour un fournisseur d'un autre pays de l'UE ?",
+     [
+      "rule-10853c5e"
+     ]
+    ],
+    [
+     "fr",
+     "Dans quel délai faut-il comptabiliser une facture ?",
+     [
+      "step-1"
+     ]
+    ],
+    [
+     "fr",
+     "Comment enregistrer un achat de plus de 5 000 euros ?",
+     [
+      "rule-a52d51ed",
+      "step-2"
+     ]
+    ],
+    [
+     "fr",
+     "Que vérifier avant de saisir une facture ?",
+     [
+      "rule-8f38203a"
+     ]
+    ]
+   ]
+  }
+ }
+}

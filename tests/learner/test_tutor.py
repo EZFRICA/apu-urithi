@@ -193,3 +193,31 @@ def test_the_learners_memory_is_marked_as_data_with_its_closing_tag_stripped(cli
 
 
 
+
+
+def test_a_learner_reads_what_is_remembered_about_them_and_removes_it(client):
+    """TencentDB's memory keeps each summary traceable to what it came from and readable by people. Here the
+    learner sees each block's words, the knowledge it is about and what they said that it came from; a block
+    removed is gone from L1, L2 and L3 and reaches no answer again; nobody else reads it."""
+    from learner.memory.mmu import get_learner_mmu
+    question = "who handles a code of conduct report"
+    assert client.post("/api/learner/ask", json={"person_id": "member", "body_id": BODY, "question": question}).status_code == 200
+    blocks = client.get("/api/learner/memory", params={"person_id": "member", "body_id": BODY}).json()["blocks"]
+    from_it = [b for b in blocks if question in b["content"] or question in ((b["source"] or {}).get("said") or "")]
+    assert any((b["source"] or {}).get("said") == question for b in from_it), "the words it was written from"
+    assert from_it and all(b["knowledge_id"] == BODY and b["in_context"] for b in from_it)
+    elsewhere = client.get("/api/learner/memory", params={"person_id": "member", "body_id": "another"}).json()["blocks"]
+    assert not any(b["in_context"] for b in elsewhere if b["knowledge_id"] == BODY), "shown, but not used there"
+    assert not any(question in b["content"] for b in
+                   client.get("/api/learner/memory", params={"person_id": "visitor"}).json()["blocks"]), "nobody else's"
+
+    for b in from_it:
+        assert client.delete(f"/api/learner/memory/{b['block_id']}", params={"person_id": "member"}).json()["forgotten"]
+    after = client.get("/api/learner/memory", params={"person_id": "member", "body_id": BODY}).json()["blocks"]
+    assert not any(question in b["content"] or question in ((b["source"] or {}).get("said") or "") for b in after)
+    mmu = get_learner_mmu()
+    assert question not in mmu.read_context("urithi", "member", knowledge_id=BODY)["text"]
+    for b in from_it:
+        content, _, _ = mmu.read_block("urithi", "member", b["block_id"])
+        assert not content, "not read back from L3 either"
+    assert client.delete("/api/learner/memory/no-such-block", params={"person_id": "member"}).json()["forgotten"] is False

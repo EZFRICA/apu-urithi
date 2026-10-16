@@ -26,7 +26,7 @@ from apu import config, embeddings
 from apu.logger import get_logger
 from apu.mmu import cache_l1, lance_driver
 from apu.mmu.block_proposal import validate as validate_proposal
-from apu.mmu.block_types import refuse_excluded_block_type
+from apu.mmu.block_types import SCENARIO_BLOCK_TYPES, refuse_excluded_block_type
 
 logger = get_logger(__name__)
 
@@ -542,11 +542,32 @@ async def create_dynamic_block(
         "prev": None,
         "next": None,
     }
+    tag_node(new_node, dll, source={"by": created_by})       # made while this knowledge is in view
     dll = insert_node_by_type(block_type, new_node, dll)
     dll["dynamic_block_count"] = dll.get("dynamic_block_count", 0) + 1
     cache_l1.set(_l1_key_for(dll, block_id, l1_prefix), initial_content, block_type=block_type)
     save_dll(dll, path=path)
     return dll
+
+
+def tag_node(node: dict, dll: dict, *, knowledge_id: str | None = None, source: dict | None = None) -> None:
+    """Which knowledge a block belongs to (scenario types only) and where its content came from.
+
+    The knowledge is the one named by the writer, else the one in view; a block about the person
+    (fundamental) belongs to none. The source keeps what it was written from, so the person can see it."""
+    if node.get("type") in SCENARIO_BLOCK_TYPES:
+        node["knowledge_id"] = knowledge_id or (dll.get("knowledge_selection") or {}).get("knowledge_id")
+    else:
+        node.pop("knowledge_id", None)
+    node["source"] = {**(source or {"by": "unknown"}), "at": datetime.now().isoformat()}
+
+
+def in_scenario(node: dict, knowledge_id: str | None) -> bool:
+    """Whether a block may be read for this knowledge: the person's own, or this knowledge's. A scenario block
+    with no knowledge recorded (written before blocks were tagged) is not assumed to be this one's."""
+    if knowledge_id is None or node.get("type") not in SCENARIO_BLOCK_TYPES:
+        return True
+    return node.get("knowledge_id") == knowledge_id
 
 
 async def update_node_content(
@@ -558,8 +579,10 @@ async def update_node_content(
     db_path: str | None = None,
     stamp_path: str | None = None,
     l1_prefix: str = "",
+    knowledge_id: str | None = None,
+    source: dict | None = None,
 ) -> dict:
-    """Update a block's content across L1, L2 (DLL) and L3 (LanceDB)."""
+    """Update a block's content across L1, L2 (DLL) and L3 (LanceDB), tagged with its knowledge and source."""
     if block_id not in dll["nodes"]:
         raise ValueError(f"Block '{block_id}' not found in the DLL.")
 
@@ -589,6 +612,7 @@ async def update_node_content(
     # 4. Update DLL node and persist
     dll["nodes"][block_id]["content"] = new_content
     dll["nodes"][block_id]["last_modified"] = datetime.now().isoformat()
+    tag_node(dll["nodes"][block_id], dll, knowledge_id=knowledge_id, source=source)
     record_access(block_id, dll)
     save_dll(dll, path=path)
     return dll

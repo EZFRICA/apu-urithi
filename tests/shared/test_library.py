@@ -249,3 +249,89 @@ def test_someone_not_in_the_registry_is_nobody_not_a_visitor():
     assert access.person("visitor").allowed == ("public",)
 
 
+
+
+# ── words beside meaning (library/keywords.py) ───────────────────────────────
+
+def _parts(prefix: str) -> Publication:
+    body_id = f"{prefix}-tooling"
+    unit = lambda name, text, level="public": Unit(  # noqa: E731
+        unit_id=f"{body_id}:{name}", body_id=body_id, kind="limit", text=text, quote=text, at=1.0, access=level)
+    units = [unit("order", "Order spare parts for the machines from the tooling supplier."),
+             unit("check", "Check every machine part against the delivery note before installing it."),
+             unit("store", "Store machine parts on the shelves by size, the heavy ones low."),
+             unit("recall", "Part ZX9Q is recalled: never install a ZX9Q, send it back.", "community")]
+    return Publication(body=Body(body_id=body_id, name="Machine parts", guardian="Ezekias", organisation=ORG,
+                                 version=1, published_at="now", language="en"), units=units)
+
+
+@pytest.mark.parametrize("library", list(_stores()), indirect=True)
+def test_a_part_found_by_its_words_is_still_never_shown_to_who_may_not_read_it(library):
+    """The words are searched under the same filter as the meaning: the full-text index is read
+    after the vector one, and a part only it found was the way a closed part could slip out."""
+    lib, prefix = library
+    lib.publish(_parts(prefix))
+    body = f"{prefix}-tooling"
+    public = lib.search(ORG, "Can I install part ZX9Q?", levels_up_to("public"), k=4, body_id=body, lang="en")
+    assert public and not any(r["unit"]["unit_id"].endswith(":recall") for r in public)
+    members = lib.search(ORG, "Can I install part ZX9Q?", levels_up_to("community"), k=1, body_id=body, lang="en")
+    assert members[0]["unit"]["unit_id"].endswith(":recall"), "for who may read it, its words bring it first"
+
+
+@pytest.mark.parametrize("library", list(_stores()), indirect=True)
+def test_asked_in_another_language_the_meaning_alone_ranks(library):
+    """Measured on 2026-10-15: French questions on English knowledge matched short words by chance
+    ("on", "a") and the fusion put the right part first 8 times in 12, against 10 by meaning alone."""
+    lib, prefix = library
+    lib.publish(_parts(prefix))
+    body = f"{prefix}-tooling"
+    ask = lambda lang: [r["unit"]["unit_id"] for r in lib.search(  # noqa: E731
+        ORG, "Peut-on installer la pièce ZX9Q sur une machine ?", levels_up_to("community"), k=4, body_id=body, lang=lang)]
+    assert ask("fr") == ask(None), "no keyword weighs across languages"
+
+
+def _articles(prefix: str) -> Publication:
+    body_id = f"{prefix}-articles"
+    unit = lambda name, text: Unit(unit_id=f"{body_id}:{name}", body_id=body_id, kind="limit", text=text,  # noqa: E731
+                                   quote=text, at=1.0, access="public")
+    return Publication(body=Body(body_id=body_id, name="a or an", guardian="Ezekias", organisation=ORG, version=1,
+                                 published_at="now", language="en"),
+                       units=[unit("silent-h", "A silent h takes an: an hour, an heir, an honour."),
+                              unit("you-sound", "A u that sounds like you takes a: a useful tool, a university."),
+                              unit("vowel", "A vowel sound takes an: an apple, an egg, an idea."),
+                              unit("consonant", "A consonant sound takes a: a dog, a cat, a house.")])
+
+
+def test_the_question_s_own_words_lift_the_part_that_says_them():
+    """Measured on 2026-10-15 on 38 labelled questions: by meaning alone the right part came first 30 times;
+    with the question's words, in its own language, 32. One was the defect measured on "a or an before
+    useful?", where the meaning put the silent H first: here the words lift the part on useful."""
+    lib = store.MemoryKnowledgeStore()
+    lib.publish(_articles("t"))
+    ranked = lambda lang: [r["unit"]["unit_id"] for r in lib.search(  # noqa: E731
+        ORG, "a or an before useful?", levels_up_to("public"), k=4, body_id="t-articles", lang=lang)]
+    assert ranked(None).index("t-articles:you-sound") > ranked("en").index("t-articles:you-sound")
+
+
+def test_fusion_and_word_scores():
+    from library import keywords
+    assert keywords.fuse(["a", "b", "c"], []) == ["a", "b", "c"], "no words: the meaning's order, unchanged"
+    assert keywords.fuse(["a", "b", "c"], ["b"])[0] == "b", "second by meaning and first by words beats first by one"
+    assert keywords.fuse(["a", "b"], ["b", "a"]) == ["a", "b"], "a tie keeps the meaning's order"
+    scores = keywords.bm25("a or an before hour", ["When a word starts with a silent H, write an: an hour.",
+                                                   "When a word starts with a consonant sound, write a."])
+    assert scores[0] > scores[1] > 0, "no word left out: 'a' and 'an' count, the rare 'hour' most"
+    assert keywords.same_language("en", "en-GB") and not keywords.same_language("fr", "en")
+    assert not keywords.same_language(None, "en") and not keywords.same_language("en", None)
+
+
+@pytest.mark.parametrize("library", list(_stores()), indirect=True)
+def test_a_search_across_every_knowledge_ranks_by_meaning_alone(library):
+    """Words were measured within one knowledge (the answer's search); across all of an organisation's,
+    nothing was measured, so the ranking there is the meaning's, as it was. The same question that the
+    words reorder within its knowledge (test above) is not reordered across them."""
+    lib, prefix = library
+    lib.publish(_articles(prefix))
+    ask = lambda lang: [r["unit"]["unit_id"] for r in lib.search(  # noqa: E731
+        ORG, "a or an before useful?", levels_up_to("public"), k=4, lang=lang)]
+    assert ask("en") == ask(None)

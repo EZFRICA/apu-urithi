@@ -65,3 +65,14 @@ part. Anything taught after validation sends the knowledge back to draft for tha
 `knowledge` (the open knowledge), and `fundamental` (preferences, what they found hard) blocks read
 by the tutor; plus **persistent progress** (FSRS reviews, notebook, exams) on the device and on the
 server.
+
+**Per knowledge, traceable, readable (decision 0017).** A block about what is in progress or under
+study carries the knowledge it was written on, and the context for an answer holds that
+knowledge's blocks and the person's own, never another knowledge's. Every block keeps its source
+(the words it was written from, when). The learner reads what is remembered about them on /learn/
+(`GET /api/learner/memory`) and removes any of it from L1, L2 and L3.
+
+**Searching [B].** Within one knowledge, parts are ranked by meaning and, when the question is in
+the knowledge's language, by its words (BM25), fused by reciprocal rank (`library/keywords.py`, the
+same code in both stores); the score an answer is held to stays the meaning's. Measured in
+`docs/measured-search.md`.

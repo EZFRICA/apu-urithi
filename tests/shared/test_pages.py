@@ -437,3 +437,16 @@ def test_every_page_declares_its_icon():
     for path in ("apu/ui/showcase/index.html", "guardian/ui/teach/index.html", "learner/ui/learn/index.html",
                  "apu/ui/presentation/index.html"):
         assert 'rel="icon"' in (ROOT / path).read_text(encoding="utf-8"), path
+
+
+def test_the_learner_can_read_and_remove_what_is_remembered_about_them():
+    page = (ROOT / "learner/ui/learn/index.html").read_text(encoding="utf-8")
+    js = (ROOT / "learner/ui/learn/learn.js").read_text(encoding="utf-8")
+    assert 'id="remembered"' in page and 'aria-labelledby="remembered-title"' in page and 'id="remembered-list"' in page
+    opening = js[js.index("    this.loadSession();\n    this.loadNotebook();"):][:120]
+    assert "async loadRemembered()" in js and "this.loadRemembered();" in opening, "shown whenever a knowledge opens"
+    remembered = js[js.index("async loadRemembered()"):js.index("async showSheet(")]
+    assert "memory?${this.q({ body_id: bodyId })}" in remembered and '{ method: "DELETE" }' in remembered
+    assert 'setAttribute("aria-label", this.t("forgetMemory"' in remembered, "each remove button says what it removes"
+    for key in ("rememberedTitle", "rememberedLead", "aboutYou", "aboutThis", "aboutOther", "fromSaid", "forgetMemory"):
+        assert js.count(f"{key}:") == 2, key                     # English and French

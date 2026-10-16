@@ -6,10 +6,12 @@ Part of [AGENTS.md](../AGENTS.md).
 
 - `docs/plan.md`: the steps are done (0 to 8, then the expert pupil P1 to P3); what is left is
   its list **Later, each a project of its own**. Ask the owner which comes next.
-- `docs/decisions/0013` to `0016`: the switches belong to the person; anyone teaches; the
-  APU memory; Urithi notes anything and only the guardian saves knowledge, by their own words.
+- `docs/decisions/0013` to `0017`: the switches belong to the person; anyone teaches; the
+  APU memory; Urithi notes anything and only the guardian saves knowledge, by their own words;
+  words beside meaning in search, a memory per knowledge, readable by its person.
 - `docs/architecture.md` for the design; `docs/measured-class.md`,
-  `docs/measured-saving-and-forgetting.md` and `docs/measured-maps-pupil-and-learner.md` for
+  `docs/measured-saving-and-forgetting.md`, `docs/measured-maps-pupil-and-learner.md` and
+  `docs/measured-search.md` for
   what was measured last and why each rule exists. Many comments in the code begin with
   "Measured:" or "Found in the review of": they say which real failure a line prevents. Keep
   them true.
@@ -31,6 +33,15 @@ Part of [AGENTS.md](../AGENTS.md).
   three runs (the same case asked three times); unexplained so far.
 - Whether a filmed class is itself published, or only the knowledge taken from it, is open
   (video sources, docs/decisions/0009).
+- The teach-back reads a rule as "When {when}, you {then}": a rule taken from a sentence with no
+  condition reads badly ("When an invoice is coded, you before coding an invoice..."). Two general
+  ways are open, the owner's choice: a neutral template, or the guardian's own words.
+- A fixed memory block (the current session) holds one knowledge at a time; keeping it per
+  knowledge waits until it is measured as needed (docs/decisions/0017).
+- Words count in search within one knowledge only; a search across all of an organisation's is
+  by meaning alone, not measured yet (`scripts/measure_search.py`).
+- Closed questions of deleted test knowledges stay in `exchange/data/questions.sqlite3`; no route
+  removes one, and deleting rows by hand needs the owner's word.
 
 ## Handing your work over for review
 

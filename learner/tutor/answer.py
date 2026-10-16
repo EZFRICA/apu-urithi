@@ -72,7 +72,7 @@ def answer(turn: ValidatedTurn, *, question: str, body_id: str, allowed, store, 
            memory_context: str = "") -> dict:
     require(turn, body_id, question)
     language = language if language in LANGUAGE_NAMES else "en"
-    found = store.search(question, allowed, k=4, body_id=body_id)
+    found = store.search(question, allowed, k=4, body_id=body_id, lang=language)   # words count in one language
     results = [r for r in found if r["score"] >= MIN_SCORE]
     # Anchored to the part in view (step 5): when it answers the question at all, it comes first.
     results.sort(key=lambda r: r["unit"]["unit_id"] != focus)

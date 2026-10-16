@@ -37,3 +37,6 @@ The completed foundation steps are in [plan-done.md](plan-done.md) (steps 0 to 2
 - A real sign-in in place of the simulated identity.
 - Local models, each measured in its role before it is a default.
 - A Web Unlocker zone, so pages that refuse a plain fetch are read in full.
+
+Done since, each measured: words beside meaning in search, a learner's memory per knowledge,
+readable and removable by them (docs/decisions/0017, [measured-search.md](measured-search.md)).

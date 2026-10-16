@@ -423,9 +423,12 @@ def test_mmu_write_back_is_scheduled_after_the_reply_on_both_sides(tmp_path, mon
         )
         assert learner_reply["kind"] == "worded"
         assert len(bg_learner.tasks) == 1 and principals_seen == [], "scheduled for after the reply"
+        # The learner opens another knowledge before the background write runs: it is still this one's.
+        l_mmu.record_session_event("urithi", "member", "another-knowledge", on="p1")
         asyncio.run(bg_learner())
         assert len(principals_seen) == 1 and principals_seen[0].person_id == "member"
         assert "who handles a code of conduct report" in l_mmu.read_context("urithi", "member")["text"]
+        assert l_mmu.load_dll("urithi", "member")["nodes"]["current_session"]["knowledge_id"] == BODY
     finally:
         lib_store.set_store(None)
         set_questions(None)
@@ -555,3 +558,53 @@ def test_save_threshold_between_record_class_moment_lock_and_search_never_loses_
 
     level, by_kind, passed = g_mmu.load_threshold("urithi", "sabine")
     assert (level, by_kind, passed) == (4, {"order": 3}, 3)
+
+
+# ── memory per knowledge, traceable (docs/measured-search.md, TencentDB's scenarios) ─────────────
+
+def test_a_learner_s_memory_on_one_knowledge_never_reaches_the_answer_on_another(tmp_path, monkeypatch):
+    """Measured on 2026-10-15: the memory reaching an answer on a knowledge held 2 lines in 2 written on another
+    (its question, its session), labelled with the new knowledge's name; the day before, such a memory made the
+    answer model find a covered question unanswered 10 times in 10. The person's own blocks reach every one."""
+    _fake_embedder(monkeypatch)
+    mmu = LearnerMmuStore(str(tmp_path / "learner_mmu"))
+    mmu.record_session_event("urithi", "ada", "body_elec", on="unit_1",
+                             asked={"unit_id": "unit_1", "question": "Why test voltage before grounding?"})
+    mmu.write_back("urithi", "ada", "Why gloves for voltage?", "Insulated gloves [1].", knowledge_id="body_elec")
+    mmu.update_block("urithi", "ada", "learner_profile", "Prefers short answers.", source={"by": "learner"})
+
+    _, other, _ = mmu.tutor_turn("urithi", "ada", "body_fire", "Where is the extinguisher?")
+    assert "voltage" not in other["text"].lower() and "gloves" not in other["text"].lower()
+    assert "short answers" in other["text"], "what is about the person reaches every knowledge"
+    assert {"current_session", "active_knowledge"} <= set(other["left_out"])
+    _, own, _ = mmu.tutor_turn("urithi", "ada", "body_elec", "And grounding?")
+    assert "voltage" in own["text"].lower(), "its own memory still reaches it"
+
+
+def test_every_block_written_says_which_knowledge_and_what_it_was_written_from(tmp_path, monkeypatch):
+    _fake_embedder(monkeypatch)
+    mmu = LearnerMmuStore(str(tmp_path / "learner_mmu"))
+    mmu.record_session_event("urithi", "ada", "body_elec", asked={"question": "Why test voltage first?"})
+    node = mmu.load_dll("urithi", "ada")["nodes"]["active_knowledge"]
+    assert node["knowledge_id"] == "body_elec" and node["source"]["by"] == "session"
+    assert "Why test voltage first?" in node["source"]["said"] and node["source"]["at"]
+
+    mmu.switch_knowledge("urithi", "ada", "body_fire")             # another knowledge in view meanwhile
+    mmu.write_back("urithi", "ada", "Why gloves for voltage?", "Insulated gloves [1].", knowledge_id="body_elec")
+    written = mmu.load_dll("urithi", "ada")["nodes"]["current_session"]
+    assert written["knowledge_id"] == "body_elec", "the knowledge it was asked on, not the one in view"
+    assert written["source"]["said"] == "Why gloves for voltage?" and written["source"]["by"] in ("extraction", "fallback")
+
+    mmu.update_block("urithi", "ada", "learner_profile", "Prefers short answers.", source={"by": "learner"})
+    assert "knowledge_id" not in mmu.load_dll("urithi", "ada")["nodes"]["learner_profile"], "about the person, no knowledge"
+
+
+def test_a_scenario_block_whose_knowledge_is_unknown_is_not_read_for_a_knowledge(tmp_path, monkeypatch):
+    """Written before blocks were tagged, or paged back in from L3 without its tag: not assumed to be this one's."""
+    _fake_embedder(monkeypatch)
+    mmu = LearnerMmuStore(str(tmp_path / "learner_mmu"))
+    mem = mmu.load_dll("urithi", "ada")
+    mem["nodes"]["current_session"]["content"] = "Asking about voltage."
+    mmu.save_dll("urithi", "ada", mem)
+    assert "voltage" not in mmu.read_context("urithi", "ada", knowledge_id="body_fire")["text"]
+    assert "voltage" in mmu.read_context("urithi", "ada")["text"], "unfiltered when no knowledge is named"

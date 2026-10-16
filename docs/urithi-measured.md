@@ -88,3 +88,4 @@ Further measurements by feature:
 - [measured-separation-and-redesign.md](measured-separation-and-redesign.md): step 0 separation and the redesign.
 - [measured-saving-and-forgetting.md](measured-saving-and-forgetting.md): the review of decision 0016, saving and forgetting, measured live.
 - [measured-maps-pupil-and-learner.md](measured-maps-pupil-and-learner.md): the map written once, the migration, the pupil answering from facts, the learner read again.
+- [measured-search.md](measured-search.md): search by words and meaning, a memory per knowledge, readable memory, saved notes kept saved.

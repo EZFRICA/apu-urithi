@@ -9,6 +9,7 @@ import asyncio
 import contextlib
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
@@ -102,16 +103,16 @@ def _extractor_ready() -> bool:
 class MmuStore(Protocol):
     def load_dll(self, organisation: str, person_id: str) -> dict: ...
     def save_dll(self, organisation: str, person_id: str, dll: dict) -> None: ...
-    def update_block(self, organisation: str, person_id: str, block_id: str, content: str,
-                     dll: dict | None = None) -> dict: ...
+    def update_block(self, organisation: str, person_id: str, block_id: str, content: str, *,
+                     knowledge_id: str | None = None, source: dict | None = None) -> dict: ...
     def read_block(self, organisation: str, person_id: str, block_id: str,
                    dll: dict | None = None) -> tuple[str | None, str, float]: ...
     def read_context(self, organisation: str, person_id: str,
-                     dll: dict | None = None) -> dict: ...
+                     knowledge_id: str | None = None) -> dict: ...
     def search(self, organisation: str, person_id: str, query: str | list[float],
                dll: dict | None = None) -> list[dict]: ...
-    def write_back(self, organisation: str, person_id: str, user_text: str, reply_text: str,
-                   dll: dict | None = None, *, history: list[dict] | None = None) -> dict: ...
+    def write_back(self, organisation: str, person_id: str, user_text: str, reply_text: str, *,
+                   history: list[dict] | None = None, knowledge_id: str | None = None) -> dict: ...
 
 
 class PersonMmuStore:
@@ -186,6 +187,9 @@ class PersonMmuStore:
         person_id: str,
         block_id: str,
         content: str,
+        *,
+        knowledge_id: str | None = None,
+        source: dict | None = None,
     ) -> dict:
         org, pid = _require_scope(organisation, person_id)
         with self.lock(org, pid):
@@ -199,6 +203,8 @@ class PersonMmuStore:
                     db_path=self.db_path(org, pid),
                     stamp_path=self.stamp_path(org, pid),
                     l1_prefix=self.l1_prefix(org, pid),
+                    knowledge_id=knowledge_id,
+                    source=source,
                 )
             )
 
@@ -311,8 +317,11 @@ class PersonMmuStore:
         self,
         organisation: str,
         person_id: str,
+        knowledge_id: str | None = None,
     ) -> dict:
-        """Compile active memory context across L1/L2/L3 in HEAD -> TAIL order."""
+        """Compile active memory context across L1/L2/L3 in HEAD -> TAIL order; for a knowledge, its own
+        blocks and the person's, never another knowledge's. A fixed block holds one knowledge's content at a
+        time: written on another, it is that one's, and left out here."""
         org, pid = _require_scope(organisation, person_id)
         with self.lock(org, pid):
             own_dll = self.load_dll(org, pid)
@@ -320,9 +329,13 @@ class PersonMmuStore:
             blocks: dict[str, str] = {}
             tiers: dict[str, str] = {}
             timings_ms: dict[str, float] = {}
+            left_out: list[str] = []
 
             for node_id in mmu_dll._head_to_tail_order(own_dll):
                 node = own_dll["nodes"][node_id]
+                if not mmu_dll.in_scenario(node, knowledge_id):
+                    left_out.append(node_id)
+                    continue
                 content, tier, ms = self.read_block(org, pid, node_id)
                 timings_ms[node_id] = round(ms, 3)
                 tiers[node_id] = tier
@@ -334,6 +347,7 @@ class PersonMmuStore:
             return {
                 "text": "\n".join(lines),
                 "blocks": blocks,
+                "left_out": left_out,
                 "tiers": tiers,
                 "timings_ms": timings_ms,
                 "head_id": own_dll.get("head_id"),
@@ -375,8 +389,10 @@ class PersonMmuStore:
         reply_text: str,
         *,
         history: list[dict] | None = None,
+        knowledge_id: str | None = None,
     ) -> dict:
-        """Extract turn memory with the metered extraction model and write back to L1/L2/L3."""
+        """Extract turn memory with the metered extraction model and write back to L1/L2/L3, each block
+        tagged with the knowledge it was written on and the words it was written from."""
         org, pid = _require_scope(organisation, person_id)
         fixed_ids = [item[0] for item in self.fixed_blocks]
 
@@ -423,6 +439,7 @@ Return ONLY a valid JSON object with these keys (empty string if nothing to upda
                 logger.warning("Memory extraction model call failed (%s); using fallback.", e)
                 problems.append(f"the memory extractor could not be reached ({e})")
 
+        source = {"by": "extraction" if updates else "fallback", "said": user_text.strip()[:240]}
         if not updates:
             head_block = fixed_ids[0]
             fallback_text = f"Recent turn: {user_text.strip()[:240]}"
@@ -447,6 +464,8 @@ Return ONLY a valid JSON object with these keys (empty string if nothing to upda
                             db_path=self.db_path(org, pid),
                             stamp_path=self.stamp_path(org, pid),
                             l1_prefix=self.l1_prefix(org, pid),
+                            knowledge_id=knowledge_id,
+                            source=source,
                         )
                     )
                     written.append(block_id)
@@ -469,6 +488,45 @@ Return ONLY a valid JSON object with these keys (empty string if nothing to upda
                     )
 
         return {"updated": written, "problems": problems, "proposal": proposal}
+
+    def blocks(self, organisation: str, person_id: str, knowledge_id: str | None = None) -> list[dict]:
+        """What the memory holds about this person, readable by them: each block's words, the knowledge it
+        belongs to, what it was written from, and whether it reaches answers on this knowledge."""
+        org, pid = _require_scope(organisation, person_id)
+        with self.lock(org, pid):
+            own_dll = self.load_dll(org, pid)
+            out = []
+            for node_id in mmu_dll._head_to_tail_order(own_dll):
+                node = own_dll["nodes"][node_id]
+                content, _, _ = self.read_block(org, pid, node_id)
+                if not content:
+                    continue
+                out.append({"block_id": node_id, "label": node.get("label", node_id), "type": node.get("type"),
+                            "content": content, "knowledge_id": node.get("knowledge_id"),
+                            "source": node.get("source") or {"by": "unknown"},
+                            "in_context": mmu_dll.in_scenario(node, knowledge_id)})
+            return out
+
+    def forget_block(self, organisation: str, person_id: str, block_id: str) -> bool:
+        """The person removes one thing remembered about them, from L1, L2 and L3: a fixed block is emptied,
+        a dynamic one deleted."""
+        org, pid = _require_scope(organisation, person_id)
+        with self.lock(org, pid):
+            own_dll = self.load_dll(org, pid)
+            node = own_dll.get("nodes", {}).get(block_id)
+            if node is None:
+                return False
+            if not node.get("is_fixed", False):
+                _run_sync(mmu_dll.delete_block_stitching(block_id, own_dll, path=self.dll_path(org, pid),
+                                                         db_path=self.db_path(org, pid), l1_prefix=self.l1_prefix(org, pid)))
+                return True
+            _run_sync(lance_driver.get_l3_store().delete_local_block(block_id, db_path=self.db_path(org, pid)))
+            cache_l1.invalidate(f"{self.l1_prefix(org, pid)}{block_id}")
+            node["content"] = ""
+            node.pop("knowledge_id", None)
+            node["source"] = {"by": "forgotten", "at": datetime.now().isoformat()}
+            self.save_dll(org, pid, own_dll)
+            return True
 
     def forget_person(self, organisation: str, person_id: str) -> None:
         """Remove all MMU files and L1 entries for one person in one organisation."""

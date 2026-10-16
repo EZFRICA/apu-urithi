@@ -16,6 +16,11 @@ PROJECT_BLOCK_TYPE = "project"
 KNOWLEDGE_BLOCK_TYPE = "knowledge"
 FUNDAMENTAL_BLOCK_TYPE = "fundamental"
 
+# What belongs to the knowledge in view, against what is about the person whatever they learn. Measured on
+# 2026-10-15: a learner's memory written on one knowledge (its question, its session) reached the answer on
+# another, labelled with the new knowledge's name, and a covered question was found unanswered 10 times in 10.
+SCENARIO_BLOCK_TYPES: frozenset[str] = frozenset({TEMPORARY_BLOCK_TYPE, PROJECT_BLOCK_TYPE, KNOWLEDGE_BLOCK_TYPE})
+
 ESCALATION_EVENT_BLOCK_TYPE = "escalation_event"
 DISTRESS_EVENT_BLOCK_TYPE = "distress_event"
 
