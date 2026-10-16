@@ -20,6 +20,10 @@ description: How Urithi uses Neo4j for the library [B]: the graph model, filtere
 - **Access and organisation filter inside the vector search**, never after it (Cypher 25):
   `SEARCH u IN (VECTOR INDEX unit_embedding FOR $q WHERE u.organisation = $org AND u.status = $published AND u.access IN $allowed LIMIT $k)`.
   Every filtered property is declared on the index (`WITH [u.organisation, u.access, ...]`).
+- **The words of one knowledge are read in the same query** as the vectors (`CALL () { ... }`),
+  under the same filter, and ranked in Python by `library/keywords.py`, as the memory store ranks
+  them. No full-text index: measured, it lost the gain (decision 0017); a second query doubled the
+  median search on Aura.
 - **Parameters always**, never a value formatted into Cypher.
 - **Managed transactions** (`execute_read`, `execute_write`), so a dropped connection is
   retried. A new version replaces the old one in one write transaction.

@@ -74,7 +74,7 @@ server process locally, and moved to a shared store by a deployment with no chan
 | Package | Holds | Data |
 |---|---|---|
 | `apu/` | inference, `mmu/` (L1, L2 DLL, L3 LanceDB interface, BMJ, page-in), modality, embeddings, language, meter, logging, config | none |
-| `library/` | store, model, access registry, read-only `reader.py` | Neo4j |
+| `library/` | store, model, access registry, read-only `reader.py`, `keywords.py` (words beside meaning) | Neo4j |
 | `exchange/` | the question box and the meter's counters | `exchange/data/` |
 | `guardian/` | engine (map, questions, commands, vision, absorb, tutor, probe), memory (maps, sessions, working, MMU), sources, publish, `/teach/` | `guardian/data/` |
 | `learner/` | tutor (guard, answer), memory (progress, files, answers, notebook, MMU), packages, renderings, `/learn/` | `learner/data/` |
