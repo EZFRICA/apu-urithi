@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 """
-Teach Sabine a knowledge on this machine, through Urithi's own routes, so the stage has a map.
+Teach and publish a knowledge on this machine, through Urithi's own routes, so the stage has one to learn.
 
     uv run python scripts/demo_map.py                      # teach, check sources, debrief, validate
     uv run python scripts/demo_map.py --quick              # the same without the public-source check
     uv run python scripts/demo_map.py --guardian ezekias   # taught by another guardian (Sabine by default)
 
-The stage (/presentation/) presents the maps of the guardian chosen on it; with none it says so. This
-teaches one the way the teach page does since decision 0016: each sentence is told, then saved
+The stage (/presentation/) learns what was published, as /learn/ does; with nothing it says so.
+This teaches one the way the teach page does since decision 0016: each sentence is told, then saved
 by the guardian's word; the debrief's cases are answered and saved; the teach-back is read and
-confirmed. The routes are the server's own, run in this process on this machine's stores; the
+confirmed; then it is published, the rule on an unknown supplier for members only, so a visitor
+and a member learn two different paths. The routes are the server's own, run in this process on this machine's stores; the
 models are real; nothing is spoken, since nobody is listening. The knowledge goes with the
 practice screen tests/screens/invoice-desk.html.
 
 It needs GEMINI_API_KEY; the public-source check needs BRIGHTDATA_API_TOKEN or TAVILY_API_KEY.
-To remove the knowledge: delete it on the teach page, or
+To remove the knowledge (withdrawn from the library too): delete it on the teach page, or
 DELETE /api/guardian/map/<map id>?person_id=<guardian>&organisation=urithi.
 """
 
@@ -48,7 +49,8 @@ RULINGS = {
 }
 
 # The routes this script calls (tests/shared/test_scripts.py holds them to the server's).
-PATHS = ("start", "tell", "save", "provenance", "debrief", "rule", "map/{map_id}/teach-back", "confirm")
+PATHS = ("start", "tell", "save", "provenance", "debrief", "rule", "map/{map_id}/teach-back", "confirm", "preview",
+         "publish")
 
 
 def main(argv: list[str]) -> int:
@@ -94,7 +96,14 @@ def main(argv: list[str]) -> int:
         teach_back = call("GET", f"map/{map_id}/teach-back")
         print(f"\n{teach_back.get('text') or teach_back.get('teach_back', '')}\n")
         done = call("POST", "confirm", {"map_id": map_id, "confirmed": True})
-        print(f"confirmed: {done.get('confirmed')}. Open http://localhost:8790/presentation/?guardian={GUARDIAN['person_id']}")
+        print(f"confirmed: {done.get('confirmed')}")
+
+        who = {"map_id": map_id, "person_id": GUARDIAN["person_id"]}
+        units = call("POST", "preview", who).get("units", [])
+        members = {u["unit_id"]: "community" for u in units if "recognis" in u.get("text", "").lower()}
+        published = call("POST", "publish", {**who, "access": members})
+        print(f"published: {published.get('body_id')}, {published.get('units')} parts, {len(members)} for members only")
+        print(f"Open http://localhost:8790/presentation/?knowledge={published.get('body_id')}")
     return 0
 
 
