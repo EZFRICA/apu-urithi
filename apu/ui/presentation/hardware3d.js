@@ -1,11 +1,11 @@
 /**
- * hardware3d.js - the Apprentice Deck, the desk companion of a new hire who cannot see the
+ * hardware3d.js - the Apprentice Deck, the desk companion of a learner who cannot see the
  * screen, rendered in Three.js at the foot of the stage.
  *
- * Every key does what the same key does on the apprentice's own page, through the same
- * routes: Talk answers out loud, Read reads the map or the case, Book tries the save, and
- * the braille key sends the Work Map to the embosser. The wheel moves between the map, the
- * case and the exam. Nothing on the deck is decoration that pretends to work.
+ * Every key does what the learner's own page (/learn/) does, through the same routes: Talk
+ * asks or answers out loud, Read reads the part in the guardian's words, Keep puts it in the
+ * notebook, and the braille key sends the part to the embosser. The wheel moves between the
+ * path, practice and the exam. Nothing on the deck is decoration that pretends to work.
  */
 
 import * as THREE from "three";
@@ -217,55 +217,55 @@ export const HARDWARE_PARTS_INFO = {
   btn_talk: {
     id: "btn_talk",
     status: "wired",
-    name: "Talk (hold to answer)",
-    badge: "Speech in · ElevenLabs Scribe",
-    codeRef: "POST /api/guardian/exam/answer ➔ probe.heard_yes_no()",
+    name: "Talk (hold to ask or answer)",
+    badge: "Speech in",
+    codeRef: "POST /api/learner/ask · /quiz · /hear",
     key: "Space",
-    desc: "The large centre key with the raised microphone. Hold it and answer the exam case out loud, yes or no. Scribe writes down what was said and code, not a model, decides whether it was a yes or a no. Anything unclear is asked again, never graded.",
+    desc: "The large centre key with the raised microphone. On the path, hold it and ask a question: the answer comes from what this learner may see, every sentence citing the guardian. In practice and the exam, hold it and answer yes or no: code, not a model, decides whether it was a yes or a no, and anything unclear is asked again, never graded.",
     sound: "heavy",
     targetPos: new THREE.Vector3(0, -0.15, 0.2),
   },
   btn_read: {
     id: "btn_read",
     status: "wired",
-    name: "Read (hear it again)",
-    badge: "Speech out · ElevenLabs v4",
-    codeRef: "GET /map/{id}/teach-back · POST /api/guardian/say",
+    name: "Read (hear it in the guardian's words)",
+    badge: "Speech out",
+    codeRef: "GET /api/learner/unit/{id}/listen · POST /api/learner/say",
     key: "R",
-    desc: "The grooved key with three raised lines. Reads whatever is in front of the new hire: the Work Map in the expert's confirmed words, the case and its fields, or the exam question. Press it again to hear it again.",
+    desc: "The grooved key with three raised lines. Reads whatever is in front of the learner: the part of the path in the guardian's own words, the case to practise, or the exam question. Press it again to hear it again.",
     sound: "mechanical",
     targetPos: new THREE.Vector3(-0.42, -0.15, 0.2),
   },
   btn_book: {
     id: "btn_book",
     status: "wired",
-    name: "Book (try the save)",
-    badge: "Teach · caught before the save",
-    codeRef: "POST /api/guardian/review ➔ tutor.review()",
+    name: "Keep (into the notebook)",
+    badge: "The learner's notebook",
+    codeRef: "POST /api/learner/notebook",
     key: "Enter",
-    desc: "The amber key with a raised tick. Tries to book the case. If a rule the expert stated applies, the deck stops before the save and says why in the expert's own sentence, then the embosser prints the same warning so it stays on the desk.",
+    desc: "The amber key with a raised tick. Keeps the last answer whole in the learner's notebook, or else the part in front of them in the guardian's words, as /learn/ does. The notebook becomes a revision sheet, on screen or in braille.",
     sound: "confirm",
     targetPos: new THREE.Vector3(0.42, -0.15, 0.2),
   },
   btn_braille: {
     id: "btn_braille",
     status: "wired",
-    name: "Braille (print the Work Map)",
-    badge: "Embossed · liblouis Grade 2",
-    codeRef: "GET /map/{id}/braille ➔ braille.emboss()",
+    name: "Braille (print the part)",
+    badge: "Embossed · Grade 2",
+    codeRef: "GET /api/learner/unit/{id}/braille",
     key: "B",
-    desc: "The key with six raised dots. Sends the Work Map to the embosser: forty cells to a line, twenty-five lines to a page, contracted English braille from liblouis. What is shown on the stage is the page the embosser prints, and the .BRF is the file it prints from.",
+    desc: "The key with six raised dots. Sends the part in front of the learner to the embosser: forty cells to a line, twenty-five lines to a page, contracted braille. What is shown on the stage is the page the embosser prints, and the .BRF is the file it prints from.",
     sound: "braille",
     targetPos: new THREE.Vector3(0, -0.55, 0.2),
   },
   mode_wheel: {
     id: "mode_wheel",
     status: "wired",
-    name: "Mode wheel (map, case, exam)",
+    name: "Mode wheel (path, practice, exam)",
     badge: "Three detents · no screen needed",
     codeRef: "presentation.js ➔ chapters",
     key: "1 · 2 · 3",
-    desc: "The knurled wheel under the right thumb, with one detent for each part of the job: the Work Map, a case to book, and the exam. Each turn says where it landed, so nobody has to look to know.",
+    desc: "The knurled wheel under the right thumb, with one detent for each part of learning: the path, practice on the cases the guardian decided, and the exam. Each turn says where it landed, so nobody has to look to know. The arrows on the keyboard move along the path.",
     sound: "mechanical",
     targetPos: new THREE.Vector3(0.72, 0.15, 0),
   },
@@ -285,7 +285,7 @@ export const HARDWARE_PARTS_INFO = {
     name: "Headphone socket",
     badge: "Private audio · open-plan office",
     codeRef: "apu/modality/voice.py ➔ synthesize()",
-    desc: "A 3.5 mm socket with a chamfered rim a fingertip finds. An expert's reasoning about a supplier is not for the whole floor to hear, so the deck is meant to speak into headphones. A hardware concept: on this stage the sound comes from the computer.",
+    desc: "A 3.5 mm socket with a chamfered rim a fingertip finds. What a learner hears and asks is theirs, not the whole room's, so the deck is meant to speak into headphones. A hardware concept: on this stage the sound comes from the computer.",
     sound: "mechanical",
     targetPos: new THREE.Vector3(-0.44, -1.18, 0),
   },
@@ -295,7 +295,7 @@ export const HARDWARE_PARTS_INFO = {
     name: "USB-C (power and the computer)",
     badge: "One cable to the workstation",
     codeRef: "apu/server.py ➔ http://localhost:8790",
-    desc: "One USB-C cable to the computer the new hire already works on. The deck is a keyboard and a loudspeaker to that computer: the apprentice itself runs there, on the same server as the expert's page. A hardware concept: on this stage the computer's own keys are the deck.",
+    desc: "One USB-C cable to the computer the learner already works on. The deck is a keyboard and a loudspeaker to that computer: Urithi runs there, on the same server as the learner's page. A hardware concept: on this stage the computer's own keys are the deck.",
     sound: "mechanical",
     targetPos: new THREE.Vector3(0, -1.18, 0),
   },

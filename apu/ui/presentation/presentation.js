@@ -13,11 +13,11 @@ import { ApprenticeBridge } from "./bridge.js";
 import { CHAPTERS, CHAPTER_NAMES, Stage } from "./stage.js";
 
 const PARTS_LIST = [
-  { id: "btn_talk", icon: "🎙️", name: "Talk", sub: "Hold Space, answer out loud" },
-  { id: "btn_read", icon: "≡", name: "Read", sub: "R, hear it again" },
-  { id: "btn_book", icon: "✓", name: "Book", sub: "Enter, try the save" },
-  { id: "btn_braille", icon: "⠿", name: "Braille", sub: "B, print the Work Map" },
-  { id: "mode_wheel", icon: "◎", name: "Mode wheel", sub: "1 2 3, map, case, exam" },
+  { id: "btn_talk", icon: "🎙️", name: "Talk", sub: "Hold Space, ask or answer out loud" },
+  { id: "btn_read", icon: "≡", name: "Read", sub: "R, hear it in the guardian's words" },
+  { id: "btn_book", icon: "✓", name: "Keep", sub: "Enter, into the notebook" },
+  { id: "btn_braille", icon: "⠿", name: "Braille", sub: "B, print the part" },
+  { id: "mode_wheel", icon: "◎", name: "Mode wheel", sub: "1 2 3, path, practice, exam" },
   { id: "port_embosser", icon: "⎙", name: "Embosser port", sub: "Prints the .BRF" },
   { id: "port_headphones", icon: "🎧", name: "Headphones", sub: "Private audio" },
   { id: "port_power", icon: "⚡", name: "USB-C", sub: "To the workstation" },
@@ -35,7 +35,7 @@ class StagePage {
       deck: $("equipment-3d-stage"),
       chapterTabs: document.querySelectorAll(".model-pill-btn"),
       mapSelect: $("map-select"),
-      guardianSelect: $("guardian-select"),
+      learnerSelect: $("learner-select"),
       statusPill: $("status-pill"),
       statusText: $("status-text"),
       talkBtn: $("toggle-mic-btn"),
@@ -67,6 +67,7 @@ class StagePage {
       },
     });
     this.stage = new Stage({
+      lang: new URLSearchParams(window.location.search).get("lang") === "fr" ? "fr" : "en",
       bridge: this.bridge,
       prompter: this.prompter,
       device: {
@@ -93,48 +94,56 @@ class StagePage {
   }
 
   async _start() {
-    await this._fillGuardians();
-    if (await this.stage.load()) this._fillMaps();
+    await this._fillLearners();
+    const params = new URLSearchParams(window.location.search);
+    if (await this.stage.load(params.get("knowledge"))) this._fillKnowledge();
     this._showChapter(this.stage.chapter);
   }
 
-  /** Every guardian may be presented, not Sabine alone; ?guardian=ezekias@urithi names one. */
-  async _fillGuardians() {
-    const select = this.dom.guardianSelect;
-    const guardians = await this.bridge.guardians();
-    if (!select || !guardians.length) return;
+  /** Who learns on the stage: any learner, at their level; ?learner=visitor names one. */
+  async _fillLearners() {
+    const select = this.dom.learnerSelect;
+    const learners = await this.bridge.learners();
+    if (!select || !learners.length) return;
     select.innerHTML = "";
-    for (const g of guardians) {
+    for (const p of learners) {
       const option = document.createElement("option");
-      option.value = `${g.person_id}@${g.organisation}`;
-      option.textContent = `${g.name} · ${g.organisation_name}`;   // textContent: names are typed by people
+      option.value = `${p.person_id}@${p.organisation}`;
+      option.textContent = `${p.name} · ${p.organisation_name}`;   // textContent: names are typed by people
       select.appendChild(option);
     }
-    const asked = new URLSearchParams(window.location.search).get("guardian");
-    const values = guardians.map((g) => `${g.person_id}@${g.organisation}`);
+    const asked = new URLSearchParams(window.location.search).get("learner");
+    const values = learners.map((p) => `${p.person_id}@${p.organisation}`);
     const chosen = values.find((v) => v === asked || v.split("@")[0] === asked)
       || values.find((v) => v.split("@")[0] === this.bridge.person) || values[0];
     select.value = chosen;
-    this._asGuardian(chosen);
+    this._asLearner(chosen);
   }
 
-  _asGuardian(value) {
+  _asLearner(value) {
     const [person, organisation] = value.split("@");
-    this.bridge.asGuardian(person, organisation || null);
+    this.bridge.asLearner(person, organisation || null);
   }
 
-  _fillMaps() {
+  /** What this learner may learn, from every guardian who published. */
+  _fillKnowledge() {
     const select = this.dom.mapSelect;
     if (!select) return;
     select.innerHTML = "";
-    for (const map of this.stage.maps) {
+    for (const body of this.stage.bodies) {
       const option = document.createElement("option");
-      option.value = map.map_id;
-      // textContent: a task and a name are typed by people, never markup.
-      option.textContent = `${map.task} · ${map.expert}${map.confirmed_at ? "" : " (unconfirmed)"}`;
-      option.selected = map.map_id === this.stage.mapId;
+      option.value = body.body_id;
+      // textContent: a name and a guardian are typed by people, never markup.
+      option.textContent = `${body.name} · ${body.guardian}`;
+      option.selected = body.body_id === this.stage.bodyId;
       select.appendChild(option);
     }
+  }
+
+  _remember(key, value) {
+    const url = new URL(window.location.href);
+    url.searchParams.set(key, value);
+    window.history.replaceState(null, "", url);
   }
 
   // ── what a part does ───────────────────────────────────────────────────────
@@ -218,19 +227,18 @@ class StagePage {
       });
     });
 
-    this.dom.guardianSelect?.addEventListener("change", async (event) => {
-      this._asGuardian(event.target.value);
-      const url = new URL(window.location.href);
-      url.searchParams.set("guardian", event.target.value);
-      window.history.replaceState(null, "", url);
-      const found = await this.stage.load();
-      if (found) this._fillMaps();
+    this.dom.learnerSelect?.addEventListener("change", async (event) => {
+      this._asLearner(event.target.value);
+      this._remember("learner", event.target.value);
+      const found = await this.stage.load(this.stage.bodyId);
+      if (found) this._fillKnowledge();
       else if (this.dom.mapSelect) this.dom.mapSelect.innerHTML = "";
       this._showChapter(this.stage.chapter);
     });
 
     this.dom.mapSelect?.addEventListener("change", async (event) => {
       await this.stage.select(event.target.value);
+      this._remember("knowledge", event.target.value);
       this._showChapter(this.stage.chapter);
     });
 
@@ -296,6 +304,9 @@ class StagePage {
     } else if (key === "Enter" && !onButton) {
       event.preventDefault();
       this.deck.triggerPress("btn_book");
+    } else if (key === "ArrowRight" || key === "ArrowLeft") {
+      event.preventDefault();
+      this.stage.move(key === "ArrowRight" ? 1 : -1);
     } else if (key === "r") {
       this.deck.triggerPress("btn_read");
     } else if (key === "b") {

@@ -1,24 +1,23 @@
 /**
- * bridge.js - what a key on the Apprentice Deck asks the apprentice, and nothing else.
+ * bridge.js - what a key on the Apprentice Deck asks Urithi, and nothing else.
  *
- * Every call here is a route the apprentice's own page uses, or one added beside them for
- * someone who cannot see that page: the stage invents no answer of its own. The microphone
- * and the loudspeaker are the shared ones in apu/ui/shared, so a defect fixed for one page
- * is fixed for both.
+ * The stage is the learner's page for someone who cannot see it: every call here is a route
+ * of the learner's side (/api/learner), the same ones /learn/ uses, on what a guardian
+ * published, at this learner's access level. Nothing a guardian has not published, and no
+ * part above the learner's level, ever reaches the deck. The microphone and the loudspeaker
+ * are the shared ones in apu/ui/shared, so a defect fixed for one page is fixed for both.
  */
 
 import { AudioPlayback, MicrophoneStream, wavBase64 } from "../shared/audio.js";
-import { PRACTICE_ACTION, PRACTICE_CASE } from "../shared/practice.js";
 
-const API = "/api/guardian";
+const API = "/api/learner";
 
 export class ApprenticeBridge {
-  constructor({ fetcher, onEvent, person = "sabine", organisation = null } = {}) {
+  constructor({ fetcher, onEvent, person = "member", organisation = null } = {}) {
     // Injected so the tests can run this file against a fake server.
     this.fetch = fetcher || ((...args) => window.fetch(...args));
-    // The stage presents one guardian's maps and asks as that guardian, a simulated identity,
-    // since a guardian's routes answer that guardian alone (guardian/api/routes.py). Sabine
-    // first; any other guardian is chosen on the page (asGuardian).
+    // Who is learning: a simulated identity, chosen on the page (asLearner). Every route
+    // answers at that person's access level.
     this.person = person;
     this.organisation = organisation;
     this.onEvent = onEvent || (() => {});
@@ -38,17 +37,22 @@ export class ApprenticeBridge {
     return `${API}/${path}${path.includes("?") ? "&" : "?"}person_id=${encodeURIComponent(this.person)}${org}`;
   }
 
-  /** Ask as another guardian from now on: the stage then presents their maps. */
-  asGuardian(person, organisation = null) {
+  /** Who the learner's routes are asked for, in a request body as well as in the address. */
+  _me() {
+    return { person_id: this.person, ...(this.organisation ? { organisation: this.organisation } : {}) };
+  }
+
+  /** Learn as another person from now on: the stage then offers what they may learn. */
+  asLearner(person, organisation = null) {
     this.person = person;
     this.organisation = organisation;
   }
 
-  /** Who may be presented: every guardian, once per organisation they teach in. */
-  async guardians() {
+  /** Who may learn on the stage: every learner, once per organisation. */
+  async learners() {
     try {
       const reply = await this._json(await this.fetch(`${API}/people`));
-      return (reply.people || []).filter((p) => p.role === "guardian");
+      return (reply.people || []).filter((p) => p.role === "learner");
     } catch {
       return [];
     }
@@ -62,14 +66,18 @@ export class ApprenticeBridge {
     return this._json(await this.fetch(this._url(path), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...this._me(), ...body }),
     }));
   }
 
   async _json(response) {
     if (!response.ok) {
-      this._offline(`The server answered ${response.status}.`);
-      throw new Error(`HTTP ${response.status}`);
+      let detail = "";
+      try { detail = (await response.json()).detail || ""; } catch { /* no body */ }
+      if (response.status >= 500 && response.status !== 503) this._offline(`The server answered ${response.status}.`);
+      const error = new Error(detail || `HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
     }
     this._online();
     return response.json();
@@ -87,61 +95,80 @@ export class ApprenticeBridge {
     this.onEvent("offline", { reason });
   }
 
-  /** The maps on this machine, confirmed ones first: only those can be taught from. */
-  async maps() {
+  /** The published knowledge this learner may learn, from every guardian. */
+  async bodies() {
     try {
-      const reply = await this._get("maps");
-      const maps = reply.maps || [];
-      return [...maps.filter((m) => m.confirmed_at), ...maps.filter((m) => !m.confirmed_at)];
+      return (await this._get("bodies")).bodies || [];
     } catch (error) {
-      this._offline(String(error));
+      if (!error.status) this._offline(String(error));
       return [];
     }
   }
 
-  map(mapId) {
-    return this._get(`map/${encodeURIComponent(mapId)}`);
+  /** A knowledge's path: its parts in order, at this learner's level. */
+  path(bodyId) {
+    return this._get(`path/${encodeURIComponent(bodyId)}`);
   }
 
-  teachBack(mapId) {
-    return this._get(`map/${encodeURIComponent(mapId)}/teach-back?spoken=true`);
+  /** One part: the guardian's words, and the cases to practise on it, without their answers. */
+  unit(unitId) {
+    return this._get(`unit/${encodeURIComponent(unitId)}`);
   }
 
-  braille(mapId, grade = 2) {
-    return this._get(`map/${encodeURIComponent(mapId)}/braille?grade=${grade}`);
+  listen(unitId, lang = "en") {
+    return this._get(`unit/${encodeURIComponent(unitId)}/listen?lang=${lang}`);
   }
 
-  exam(mapId) {
-    return this._get(`exam/${encodeURIComponent(mapId)}`);
+  braille(unitId, grade = 2, lang = "en") {
+    return this._get(`unit/${encodeURIComponent(unitId)}/braille?grade=${grade}&lang=${lang}`);
   }
 
-  /** Book the practice case. The review runs before the save, never after it. */
-  book(mapId) {
-    return this._post("review", { map_id: mapId, case: PRACTICE_CASE, about_to: PRACTICE_ACTION });
+  /** One case answered, graded by code against the guardian's decision: a key, words or a recording. */
+  quiz(caseId, { answer = null, said = null, audio = null } = {}) {
+    return this._post("quiz", { case_id: caseId, answer, said, audio });
   }
 
-  /** One exam case answered: typed or keyed words, or a recording. */
-  answer(mapId, rulingId, { said = null, audio = null } = {}) {
-    return this._post("exam/answer", { map_id: mapId, ruling_id: rulingId, said, audio });
+  exam(bodyId) {
+    return this._get(`exam/${encodeURIComponent(bodyId)}`);
+  }
+
+  /** Every exam answer at once, marked only then: no answer is seen before the last question. */
+  markExam(bodyId, answers) {
+    return this._post(`exam/${encodeURIComponent(bodyId)}`, { answers });
+  }
+
+  /** A question said aloud, to its words. */
+  hear(audio) {
+    return this._post("hear", { audio });
+  }
+
+  /** A question to the knowledge: guarded, answered from what this learner may see, cited. */
+  ask(bodyId, question, unitId = null, lang = "en") {
+    return this._post("ask", { body_id: bodyId, question, lang, unit_id: unitId });
+  }
+
+  /** Kept in the learner's notebook, as on /learn/. */
+  keep(bodyId, { kind, text, question = "", unitIds = [] }) {
+    return this._post("notebook", { body_id: bodyId, kind, text, question, unit_ids: unitIds });
   }
 
   /** A sentence the stage already shows, read out. */
   async say(text) {
     const reply = await this._post("say", { text });
-    this.play(reply.audio);
+    this.play(reply.audio, reply.mime);
     return reply;
   }
 
-  play(audio) {
+  play(audio, mime = "audio/wav") {
     if (!audio) return false;
-    this.lastAudio = audio;
-    this.playback.enqueue(audio, "audio/wav");
+    this.lastAudio = { audio, mime };
+    this.playback.enqueue(audio, mime);
     return true;
   }
 
   /** The last thing said, said again: what the loudspeaker key does. */
   replay() {
-    return this.play(this.lastAudio);
+    return this.lastAudio ? this.play(this.lastAudio.audio, this.lastAudio.mime) : false;
   }
 
   /** Hold to talk. True if the microphone opened. */

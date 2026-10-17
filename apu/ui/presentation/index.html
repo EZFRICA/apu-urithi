@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Urithi · Stage</title>
-  <meta name="description" content="Urithi, presented on the deck a blind or low-vision new hire works with: the expert's Work Map read aloud, printed in braille, and enforced before the save.">
+  <meta name="description" content="Urithi on the deck a blind or low-vision learner works with: a published knowledge learned part by part, heard in the guardian's words, printed in braille, practised and examined, questions asked aloud.">
 
   <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%231a1426%22%2F%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2226%22%20r%3D%229%22%20fill%3D%22%23cfc6e2%22%2F%3E%3Ccircle%20cx%3D%2241%22%20cy%3D%2238%22%20r%3D%2213%22%20fill%3D%22%238b5cf6%22%2F%3E%3C%2Fsvg%3E">
 
@@ -25,7 +25,7 @@
 <body>
 
   <header class="keynote-navbar">
-    <a class="nav-brand" href="/teach/" title="Open the guardian's page">
+    <a class="nav-brand" href="/learn/" title="Open the learner's page">
       <div class="brand-badge" aria-hidden="true">U</div>
       <div class="brand-title">
         Urithi
@@ -33,20 +33,20 @@
       </div>
     </a>
 
-    <!-- The three parts of the job, the same three detents as the wheel on the deck. -->
-    <nav class="nav-center" aria-label="Part of the job">
-      <button class="model-pill-btn active" data-chapter="map" aria-pressed="true">1 · Work Map</button>
-      <button class="model-pill-btn" data-chapter="case" aria-pressed="false">2 · The case</button>
+    <!-- The three parts of learning, the same three detents as the wheel on the deck. -->
+    <nav class="nav-center" aria-label="Part of learning">
+      <button class="model-pill-btn active" data-chapter="path" aria-pressed="true">1 · Path</button>
+      <button class="model-pill-btn" data-chapter="practice" aria-pressed="false">2 · Practice</button>
       <button class="model-pill-btn" data-chapter="exam" aria-pressed="false">3 · Exam</button>
     </nav>
 
     <div class="nav-actions">
       <div class="map-selector">
-        <label for="guardian-select">Guardian:</label>
-        <select id="guardian-select"><option>Loading…</option></select>
+        <label for="learner-select">Learner:</label>
+        <select id="learner-select"><option>Loading…</option></select>
       </div>
       <div class="map-selector">
-        <label for="map-select">Work Map:</label>
+        <label for="map-select">Knowledge:</label>
         <select id="map-select"><option>Loading…</option></select>
       </div>
 
@@ -87,7 +87,7 @@
         <div id="prompter-stage-container" class="prompter-container">
           <div class="prompter-speaker-badge idle"><span>Ready</span></div>
           <div class="prompter-text-window">
-            <div class="prompter-text empty">Loading the Work Map…</div>
+            <div class="prompter-text empty">Loading what you can learn…</div>
           </div>
           <div class="prompter-card-slot"></div>
 
@@ -111,7 +111,7 @@
   <aside id="hardware-parts-drawer" class="hardware-parts-drawer" aria-labelledby="drawer-title">
     <div class="drawer-header">
       <h2 class="drawer-title" id="drawer-title">The Apprentice Deck</h2>
-      <span class="drawer-subtitle">For a new hire who cannot see the screen</span>
+      <span class="drawer-subtitle">For a learner who cannot see the screen</span>
     </div>
     <div id="parts-list" class="parts-list" role="group" aria-label="Press a part of the deck"></div>
   </aside>
@@ -128,7 +128,7 @@
   </aside>
 
   <div class="stage-helper-hint" aria-hidden="true">
-    <span>1 2 3 part of the job · R read · B braille · Enter book · hold Space to answer · Y / N · Esc puts the sheet away</span>
+    <span>1 2 3 part of learning · ← → part · R read · B braille · Enter keep · hold Space to ask or answer · Y / N · Esc puts the sheet away</span>
   </div>
 
   <script type="module" src="presentation.js"></script>

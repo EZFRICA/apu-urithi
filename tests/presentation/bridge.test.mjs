@@ -4,7 +4,6 @@ import { installDom } from "./dom_stub.mjs";
 
 installDom();
 const { ApprenticeBridge } = await import("../../apu/ui/presentation/bridge.js");
-const { PRACTICE_ACTION, PRACTICE_CASE } = await import("../../apu/ui/shared/practice.js");
 
 const cases = [];
 const test = (name, fn) => cases.push([name, fn]);
@@ -21,52 +20,65 @@ function server(replies = {}) {
   return { fetcher, requests };
 }
 
-test("confirmed maps come first: only those can be taught from", async () => {
-  const { fetcher } = server({ "/api/guardian/maps": { maps: [
-    { map_id: "a", confirmed_at: null }, { map_id: "b", confirmed_at: "2026-10-04" }] } });
-  const maps = await new ApprenticeBridge({ fetcher }).maps();
-  assert.deepEqual(maps.map((m) => m.map_id), ["b", "a"]);
+test("the stage learns through the learner's routes: what was published, at this learner's level", async () => {
+  // Found on 2026-10-17: the stage asked a guardian's routes for a draft map, and its exam had
+  // no access level. Every call is now one /learn/ makes.
+  const { fetcher, requests } = server({ "/api/learner/bodies": { bodies: [{ body_id: "b1" }] } });
+  const bridge = new ApprenticeBridge({ fetcher });
+  assert.deepEqual((await bridge.bodies()).map((b) => b.body_id), ["b1"]);
+  await bridge.path("b1");
+  await bridge.unit("b1:step-1");
+  await bridge.exam("b1");
+  assert.deepEqual(requests.map((r) => r.url), [
+    "/api/learner/bodies?person_id=member", "/api/learner/path/b1?person_id=member",
+    "/api/learner/unit/b1%3Astep-1?person_id=member", "/api/learner/exam/b1?person_id=member"]);
+  assert.ok(requests.every((r) => !r.url.includes("/api/guardian/")), "nothing of a guardian's side");
 });
 
-test("any guardian can be presented: the stage asks as the one chosen, in their organisation", async () => {
-  // Found on 2026-10-17: the stage asked as Sabine alone, and said "No Work Map yet" while
-  // Ezekias had five on the same machine.
-  const { fetcher, requests } = server({ "/api/guardian/people": { people: [
+test("any learner can sit at the stage: it asks as the one chosen, in their organisation", async () => {
+  const { fetcher, requests } = server({ "/api/learner/people": { people: [
     { person_id: "ezekias", role: "guardian", organisation: "urithi" },
     { person_id: "member", role: "learner", organisation: "urithi" },
-    { person_id: "sabine", role: "guardian", organisation: "urithi" }] } });
+    { person_id: "visitor", role: "learner", organisation: "urithi" }] } });
   const bridge = new ApprenticeBridge({ fetcher });
-  assert.deepEqual((await bridge.guardians()).map((g) => g.person_id), ["ezekias", "sabine"], "guardians only");
-  bridge.asGuardian("ezekias", "urithi");
-  await bridge.maps();
-  assert.equal(requests.at(-1).url, "/api/guardian/maps?person_id=ezekias&organisation=urithi");
+  assert.deepEqual((await bridge.learners()).map((p) => p.person_id), ["member", "visitor"], "learners only");
+  bridge.asLearner("visitor", "urithi");
+  await bridge.bodies();
+  assert.equal(requests.at(-1).url, "/api/learner/bodies?person_id=visitor&organisation=urithi");
 });
 
-test("Book sends the shared practice case and action, to the review route", async () => {
+test("a practice answer goes to the quiz route, graded there, with who is answering", async () => {
   const { fetcher, requests } = server();
-  await new ApprenticeBridge({ fetcher }).book("m1");
-  assert.equal(requests[0].url, "/api/guardian/review?person_id=sabine");
-  assert.deepEqual(requests[0].body, { map_id: "m1", case: PRACTICE_CASE, about_to: PRACTICE_ACTION });
+  const bridge = new ApprenticeBridge({ fetcher });
+  bridge.asLearner("member", "urithi");
+  await bridge.quiz("b1:case-1", { said: "yes" });
+  assert.equal(requests[0].url, "/api/learner/quiz?person_id=member&organisation=urithi");
+  assert.deepEqual(requests[0].body, { person_id: "member", organisation: "urithi", case_id: "b1:case-1",
+                                       answer: null, said: "yes", audio: null });
 });
 
-test("an exam answer goes to the exam answer route with what was said", async () => {
+test("the exam is marked once, every answer together", async () => {
   const { fetcher, requests } = server();
-  await new ApprenticeBridge({ fetcher }).answer("m1", "r1", { said: "yes" });
-  assert.equal(requests[0].url, "/api/guardian/exam/answer?person_id=sabine");
-  assert.deepEqual(requests[0].body, { map_id: "m1", ruling_id: "r1", said: "yes", audio: null });
+  await new ApprenticeBridge({ fetcher }).markExam("b1", { c1: true, c2: false });
+  assert.equal(requests[0].url, "/api/learner/exam/b1?person_id=member");
+  assert.deepEqual(requests[0].body, { person_id: "member", answers: { c1: true, c2: false } });
 });
 
-test("the teach-back is asked for spoken, and a map id is escaped in the path", async () => {
+test("a question asked aloud is heard, then asked from the part in view", async () => {
   const { fetcher, requests } = server();
-  await new ApprenticeBridge({ fetcher }).teachBack("a/b");
-  assert.equal(requests[0].url, "/api/guardian/map/a%2Fb/teach-back?spoken=true&person_id=sabine");
+  const bridge = new ApprenticeBridge({ fetcher });
+  await bridge.hear("UklGRg==");
+  await bridge.ask("b1", "When do we turn it?", "b1:step-1", "fr");
+  assert.equal(requests[0].url, "/api/learner/hear?person_id=member");
+  assert.deepEqual(requests[1].body, { person_id: "member", body_id: "b1", question: "When do we turn it?",
+                                       lang: "fr", unit_id: "b1:step-1" });
 });
 
-test("a server that is down is reported, not taken for an empty list of maps", async () => {
+test("a server that is down is reported, not taken for nothing to learn", async () => {
   const events = [];
-  const { fetcher } = server({ "/api/guardian/maps": "down" });
+  const { fetcher } = server({ "/api/learner/bodies": "down" });
   const bridge = new ApprenticeBridge({ fetcher, onEvent: (type) => events.push(type) });
-  assert.deepEqual(await bridge.maps(), []);
+  assert.deepEqual(await bridge.bodies(), []);
   assert.equal(bridge.isOnline, false);
   assert.ok(events.includes("offline"));
 });
@@ -76,7 +88,7 @@ test("the loudspeaker key replays the last thing said, and nothing if nothing wa
   const played = [];
   bridge.playback = { enqueue: (audio) => played.push(audio) };
   assert.equal(bridge.replay(), false);
-  bridge.play("A");
+  bridge.play("A", "audio/mpeg");
   bridge.replay();
   assert.deepEqual(played, ["A", "A"]);
 });
