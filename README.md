@@ -25,7 +25,7 @@ uv run python -m server              # or scripts/serve.sh, which restarts it by
 | `http://localhost:8790/` | **the showcase**: what Urithi is, static, the way into both sides |
 | `http://localhost:8790/teach/` | **teach**: a conversation, the knowledge growing beside it as a tree, documents to cite, the classroom mode on a shared screen or a camera (Urithi asks at the pauses and listens hands free, "remember this" keeps part of the screen, the question and the notes can float above the work), the debrief, then validate and publish with an access level per part; a knowledge can be deleted, asked twice |
 | `http://localhost:8790/learn/` | **learn**: the contents as a tree beside the part in view and the questions, each part read, heard, in braille or practised, reviews when due; what Urithi remembers about the learner, readable and removable |
-| `http://localhost:8790/presentation/` | **the stage**: the same knowledge on the desk of a learner who cannot see the screen |
+| `http://localhost:8790/presentation/` | **the stage**: the same knowledge on the desk of a learner who cannot see the screen. Any guardian's maps (`?guardian=ezekias`) |
 
 The design is [docs/architecture.md](docs/architecture.md), and the order it is built in
 [docs/plan.md](docs/plan.md). What was
@@ -58,7 +58,7 @@ The embedding model lives in `models/` (about 240 MB) and is never downloaded at
 uv run pytest -q                         # offline, no key needed
 URITHI_LIVE_NEO4J=1 uv run pytest tests/shared/test_library.py -k neo4j   # the same contract, live
 uv run python scripts/measure_search.py  # the search on 38 labelled questions, by meaning and by words
-uv run python scripts/mutate.py          # 364 deliberate defects in parallel copies, each must be caught
+uv run python scripts/mutate.py          # 369 deliberate defects in parallel copies, each must be caught
 ```
 
 ## What is in the box
