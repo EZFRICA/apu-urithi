@@ -50,8 +50,8 @@ export class Stage {
       this.map = null;
       this.onStatus("offline", this.bridge.isOnline ? "No Work Map yet" : "Server not answering");
       this.prompter.showNotice(this.bridge.isOnline
-        ? "There is no Work Map on this machine yet. An expert teaches one on the " +
-          "apprentice's page first, by sharing their screen and working."
+        ? "This guardian has no Work Map on this machine yet. Choose another guardian above, " +
+          "or teach one on the teach page first (or run scripts/demo_map.py)."
         : "The apprentice's server is not answering. Start it with scripts/serve.sh.");
       return false;
     }

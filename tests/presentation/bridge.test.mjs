@@ -28,6 +28,20 @@ test("confirmed maps come first: only those can be taught from", async () => {
   assert.deepEqual(maps.map((m) => m.map_id), ["b", "a"]);
 });
 
+test("any guardian can be presented: the stage asks as the one chosen, in their organisation", async () => {
+  // Found on 2026-10-17: the stage asked as Sabine alone, and said "No Work Map yet" while
+  // Ezekias had five on the same machine.
+  const { fetcher, requests } = server({ "/api/guardian/people": { people: [
+    { person_id: "ezekias", role: "guardian", organisation: "urithi" },
+    { person_id: "member", role: "learner", organisation: "urithi" },
+    { person_id: "sabine", role: "guardian", organisation: "urithi" }] } });
+  const bridge = new ApprenticeBridge({ fetcher });
+  assert.deepEqual((await bridge.guardians()).map((g) => g.person_id), ["ezekias", "sabine"], "guardians only");
+  bridge.asGuardian("ezekias", "urithi");
+  await bridge.maps();
+  assert.equal(requests.at(-1).url, "/api/guardian/maps?person_id=ezekias&organisation=urithi");
+});
+
 test("Book sends the shared practice case and action, to the review route", async () => {
   const { fetcher, requests } = server();
   await new ApprenticeBridge({ fetcher }).book("m1");

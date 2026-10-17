@@ -13,12 +13,14 @@ import { PRACTICE_ACTION, PRACTICE_CASE } from "../shared/practice.js";
 const API = "/api/guardian";
 
 export class ApprenticeBridge {
-  constructor({ fetcher, onEvent, person = "sabine" } = {}) {
+  constructor({ fetcher, onEvent, person = "sabine", organisation = null } = {}) {
     // Injected so the tests can run this file against a fake server.
     this.fetch = fetcher || ((...args) => window.fetch(...args));
-    // The stage presents Sabine's session: it asks as Sabine, a simulated identity, since a
-    // guardian's routes answer that guardian alone (guardian/api/routes.py).
+    // The stage presents one guardian's maps and asks as that guardian, a simulated identity,
+    // since a guardian's routes answer that guardian alone (guardian/api/routes.py). Sabine
+    // first; any other guardian is chosen on the page (asGuardian).
     this.person = person;
+    this.organisation = organisation;
     this.onEvent = onEvent || (() => {});
     this.playback = new AudioPlayback();
     this.microphone = null;
@@ -32,7 +34,24 @@ export class ApprenticeBridge {
   }
 
   _url(path) {
-    return `${API}/${path}${path.includes("?") ? "&" : "?"}person_id=${encodeURIComponent(this.person)}`;
+    const org = this.organisation ? `&organisation=${encodeURIComponent(this.organisation)}` : "";
+    return `${API}/${path}${path.includes("?") ? "&" : "?"}person_id=${encodeURIComponent(this.person)}${org}`;
+  }
+
+  /** Ask as another guardian from now on: the stage then presents their maps. */
+  asGuardian(person, organisation = null) {
+    this.person = person;
+    this.organisation = organisation;
+  }
+
+  /** Who may be presented: every guardian, once per organisation they teach in. */
+  async guardians() {
+    try {
+      const reply = await this._json(await this.fetch(`${API}/people`));
+      return (reply.people || []).filter((p) => p.role === "guardian");
+    } catch {
+      return [];
+    }
   }
 
   async _get(path) {

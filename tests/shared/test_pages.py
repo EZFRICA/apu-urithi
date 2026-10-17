@@ -450,3 +450,13 @@ def test_the_learner_can_read_and_remove_what_is_remembered_about_them():
     assert 'setAttribute("aria-label", this.t("forgetMemory"' in remembered, "each remove button says what it removes"
     for key in ("rememberedTitle", "rememberedLead", "aboutYou", "aboutThis", "aboutOther", "fromSaid", "forgetMemory"):
         assert js.count(f"{key}:") == 2, key                     # English and French
+
+
+def test_the_stage_offers_every_guardian_not_sabine_alone():
+    """Found on 2026-10-17: the stage presented Sabine's maps only."""
+    page = (ROOT / "apu/ui/presentation/index.html").read_text(encoding="utf-8")
+    js = (ROOT / "apu/ui/presentation/presentation.js").read_text(encoding="utf-8")
+    assert '<label for="guardian-select">' in page and 'id="guardian-select"' in page
+    assert "await this._fillGuardians();" in js and 'get("guardian")' in js
+    change = js[js.index('this.dom.guardianSelect?.addEventListener("change"'):][:500]
+    assert "this._asGuardian(event.target.value);" in change and "await this.stage.load();" in change

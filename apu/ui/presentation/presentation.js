@@ -35,6 +35,7 @@ class StagePage {
       deck: $("equipment-3d-stage"),
       chapterTabs: document.querySelectorAll(".model-pill-btn"),
       mapSelect: $("map-select"),
+      guardianSelect: $("guardian-select"),
       statusPill: $("status-pill"),
       statusText: $("status-text"),
       talkBtn: $("toggle-mic-btn"),
@@ -92,8 +93,34 @@ class StagePage {
   }
 
   async _start() {
+    await this._fillGuardians();
     if (await this.stage.load()) this._fillMaps();
     this._showChapter(this.stage.chapter);
+  }
+
+  /** Every guardian may be presented, not Sabine alone; ?guardian=ezekias@urithi names one. */
+  async _fillGuardians() {
+    const select = this.dom.guardianSelect;
+    const guardians = await this.bridge.guardians();
+    if (!select || !guardians.length) return;
+    select.innerHTML = "";
+    for (const g of guardians) {
+      const option = document.createElement("option");
+      option.value = `${g.person_id}@${g.organisation}`;
+      option.textContent = `${g.name} · ${g.organisation_name}`;   // textContent: names are typed by people
+      select.appendChild(option);
+    }
+    const asked = new URLSearchParams(window.location.search).get("guardian");
+    const values = guardians.map((g) => `${g.person_id}@${g.organisation}`);
+    const chosen = values.find((v) => v === asked || v.split("@")[0] === asked)
+      || values.find((v) => v.split("@")[0] === this.bridge.person) || values[0];
+    select.value = chosen;
+    this._asGuardian(chosen);
+  }
+
+  _asGuardian(value) {
+    const [person, organisation] = value.split("@");
+    this.bridge.asGuardian(person, organisation || null);
   }
 
   _fillMaps() {
@@ -189,6 +216,17 @@ class StagePage {
         await this.stage.setChapter(tab.dataset.chapter);
         this._showChapter(this.stage.chapter);
       });
+    });
+
+    this.dom.guardianSelect?.addEventListener("change", async (event) => {
+      this._asGuardian(event.target.value);
+      const url = new URL(window.location.href);
+      url.searchParams.set("guardian", event.target.value);
+      window.history.replaceState(null, "", url);
+      const found = await this.stage.load();
+      if (found) this._fillMaps();
+      else if (this.dom.mapSelect) this.dom.mapSelect.innerHTML = "";
+      this._showChapter(this.stage.chapter);
     });
 
     this.dom.mapSelect?.addEventListener("change", async (event) => {
