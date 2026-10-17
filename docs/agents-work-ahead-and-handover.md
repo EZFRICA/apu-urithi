@@ -6,9 +6,10 @@ Part of [AGENTS.md](../AGENTS.md).
 
 - `docs/plan.md`: the steps are done (0 to 8, then the expert pupil P1 to P3); what is left is
   its list **Later, each a project of its own**. Ask the owner which comes next.
-- `docs/decisions/0013` to `0017`: the switches belong to the person; anyone teaches; the
+- `docs/decisions/0013` to `0018`: the switches belong to the person; anyone teaches; the
   APU memory; Urithi notes anything and only the guardian saves knowledge, by their own words;
-  words beside meaning in search, a memory per knowledge, readable by its person.
+  words beside meaning in search, a memory per knowledge, readable by its person; the stage
+  learns what was published, as /learn/ does.
 - `docs/architecture.md` for the design; `docs/measured-class.md`,
   `docs/measured-saving-and-forgetting.md`, `docs/measured-maps-pupil-and-learner.md` and
   `docs/measured-search.md` for

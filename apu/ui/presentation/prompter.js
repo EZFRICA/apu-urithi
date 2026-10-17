@@ -11,9 +11,9 @@
  */
 
 const SPEAKERS = {
-  apprentice: "The apprentice",
-  hire: "The new hire",
-  expert: "In the expert's own words",
+  apprentice: "Urithi",
+  hire: "The learner",
+  expert: "In the guardian's own words",
 };
 
 export class PrompterController {

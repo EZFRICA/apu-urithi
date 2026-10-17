@@ -56,10 +56,11 @@ uv run python scripts/mutate.py                          # all of them, about 30
 uv run python scripts/measure_search.py                  # the search on 38 labelled questions
 URITHI_LIVE_NEO4J=1 uv run pytest -q tests -k neo4j      # the store contract on real Neo4j
 bash scripts/serve.sh                                    # restart the server on 8790
+uv run python scripts/demo_map.py --quick                # a published knowledge for the stage (--guardian ezekias)
 ```
 
-- On 2026-10-16: 605 tests pass, 10 are skipped (live tests behind flags), ruff is clean, and
-  `scripts/mutate.py` holds 364 deliberate defects, all caught.
+- On 2026-10-17: 607 tests pass, 10 are skipped (live tests behind flags), ruff is clean, and
+  `scripts/mutate.py` holds 374 deliberate defects, all caught.
 - **`mutate.py` works on copies of the repository in a temporary directory**, taken when it
   starts; the tree and the server are not touched. A change made while it runs is seen only in
   part (the mutant's own file is read again, the rest is the copy): after editing, run it again.

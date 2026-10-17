@@ -1,5 +1,5 @@
 """
-The stage: the apprentice presented on the deck a blind or low-vision new hire works with.
+The stage: Urithi on the deck a blind or low-vision learner works with, the learner's routes only.
 
 Target: apu/ui/presentation/
 
@@ -66,22 +66,24 @@ def _routes() -> set[tuple[str, str]]:
 
 
 def _as_route(path: str) -> str:
-    """A template literal path from bridge.js, as FastAPI writes the same route."""
+    """A template literal path from bridge.js, as FastAPI writes the same route: the learner's side."""
     path = path.split("?")[0]
-    return "/api/guardian/" + re.sub(r"\$\{encodeURIComponent\(mapId\)\}", "{map_id}", path)
+    path = re.sub(r"\$\{encodeURIComponent\(bodyId\)\}", "{body_id}", path)
+    return "/api/learner/" + re.sub(r"\$\{encodeURIComponent\(unitId\)\}", "{unit_id}", path)
 
 
 def test_every_route_the_stage_calls_exists_on_the_server():
     """A key wired to a route that is not there is a key that does nothing, said silently."""
     routes = _routes()
     gets = re.findall(r"this\._get\(`([^`]+)`\)|this\._get\(\"([^\"]+)\"\)", BRIDGE)
-    posts = re.findall(r"this\._post\(\"([^\"]+)\"", BRIDGE)
+    posts = re.findall(r"this\._post\(`([^`]+)`|this\._post\(\"([^\"]+)\"", BRIDGE)
     assert gets and posts, "the bridge's calls were not found"
     for path in [a or b for a, b in gets]:
         route = _as_route(path)
         assert ("GET", route) in routes, f"GET {route} is called by the stage and served by nothing"
-    for path in posts:
-        assert ("POST", f"/api/guardian/{path}") in routes, f"POST {path} is not served"
+    for path in [a or b for a, b in posts]:
+        route = _as_route(path)
+        assert ("POST", route) in routes, f"POST {route} is not served"
 
 
 def test_each_key_on_the_deck_does_something_in_the_stage():

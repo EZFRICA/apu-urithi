@@ -67,6 +67,7 @@ version, and the learner's page says so.
   question to them, and the page says when the guardian has answered, and in which version.
   Within a knowledge, the parts that answer are found by meaning and, in the knowledge's own
   language, by the question's words (decision 0017).
+- **Learns without a screen** on the stage (`/presentation/`), the same routes on a deck (0018).
 - **Sees what Urithi remembers about them.** Each thing kept says which knowledge it is about and
   what they said that it came from; only what is about them or this knowledge reaches its answers,
   and they remove anything they do not want kept.

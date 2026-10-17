@@ -450,3 +450,20 @@ def test_the_learner_can_read_and_remove_what_is_remembered_about_them():
     assert 'setAttribute("aria-label", this.t("forgetMemory"' in remembered, "each remove button says what it removes"
     for key in ("rememberedTitle", "rememberedLead", "aboutYou", "aboutThis", "aboutOther", "fromSaid", "forgetMemory"):
         assert js.count(f"{key}:") == 2, key                     # English and French
+
+
+def test_the_stage_learns_the_way_learn_does_for_any_learner():
+    """Found on 2026-10-17: the stage presented Sabine's draft maps, an invoice case hard-coded for every
+    knowledge, and an exam with no access level. It now learns what was published, as /learn/ does."""
+    page = (ROOT / "apu/ui/presentation/index.html").read_text(encoding="utf-8")
+    js = (ROOT / "apu/ui/presentation/presentation.js").read_text(encoding="utf-8")
+    bridge = (ROOT / "apu/ui/presentation/bridge.js").read_text(encoding="utf-8")
+    stage = (ROOT / "apu/ui/presentation/stage.js").read_text(encoding="utf-8")
+    assert '<label for="learner-select">' in page and '<label for="map-select">Knowledge:</label>' in page
+    for chapter in ('data-chapter="path"', 'data-chapter="practice"', 'data-chapter="exam"'):
+        assert chapter in page, chapter
+    assert "await this._fillLearners();" in js and 'get("learner")' in js and 'get("knowledge")' in js
+    change = js[js.index('this.dom.learnerSelect?.addEventListener("change"'):][:400]
+    assert "this._asLearner(event.target.value);" in change and "await this.stage.load(" in change
+    assert 'const API = "/api/learner";' in bridge and "/api/guardian" not in bridge, "the learner's side only"
+    assert "practice.js" not in stage + bridge, "no case hard-coded for every knowledge"
