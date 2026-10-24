@@ -16,9 +16,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from apu.logger import get_logger  # noqa: E402
 from library import store as library_store  # noqa: E402
 from library.model import Body, Publication, Unit, levels_up_to  # noqa: E402
 
+logger = get_logger("measure_search")
 ORG = "urithi"
 
 
@@ -31,7 +33,7 @@ def _knowledges(bench: dict) -> dict:
         if parts is None:
             published = library_store.get_store().body_units(ORG, body_id, levels_up_to("restricted"))
             if not published:
-                print(f"{name}: {body_id} is not in the library here, skipped")
+                logger.info("%s: %s is not in the library here, skipped", name, body_id)
                 continue
             parts = [{"id": u["unit_id"].split(":", 1)[1], "text": u["text"], "quote": u["quote"]} for u in published["units"]]
         memory.publish(Publication(
@@ -57,8 +59,9 @@ def main() -> None:
         for lang in ("all", "en", "fr"):
             rs = [r for r in results if lang == "all" or r[0] == lang]
             if rs:
-                print(f"{label:27} {lang:3} first {sum(r[1] == 0 for r in rs)}/{len(rs)}, in four {sum(r[1] is not None for r in rs)}/{len(rs)},"
-                      f" MRR {sum(1 / (r[1] + 1) for r in rs if r[1] is not None) / len(rs):.3f}")
+                logger.info("%-27s %-3s first %d/%d, in four %d/%d, MRR %.3f", label, lang, sum(r[1] == 0 for r in rs),
+                            len(rs), sum(r[1] is not None for r in rs), len(rs),
+                            sum(1 / (r[1] + 1) for r in rs if r[1] is not None) / len(rs))
 
 
 if __name__ == "__main__":

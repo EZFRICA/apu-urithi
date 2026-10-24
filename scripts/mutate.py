@@ -30,6 +30,11 @@ import tempfile
 import threading
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from apu.logger import get_logger  # noqa: E402
+
+logger = get_logger("mutate")
 
 # (what it breaks, file, the real line, the broken line)
 MUTANTS = [
@@ -82,6 +87,9 @@ MUTANTS = [
      "else this.unanswered = error.message;", 'else this.unanswered = "";'),
     ("the stage's client keeping a stale reason", "apu/ui/presentation/bridge.js",
      '    this.unanswered = "";\n    try {\n', "    try {\n"),
+    ("a script printing instead of logging", "scripts/check_tracing.py",
+     'logger.info("spans holding the words sent or answered: %d", len(texts))',
+     'print("spans holding the words sent or answered:", len(texts))'),
     ("the jurisdiction filter", "guardian/engine/provenance.py",
      'return found in ("", "any", "international", country.lower())', "return True"),
     ("unchecked never becoming corroborated", "guardian/engine/provenance.py",
@@ -1053,8 +1061,8 @@ MUTANTS = [
      'call("POST", "tell", {"map_id": map_id, "said": said})',
      'call("POST", "answer", {"map_id": map_id, "said": said})'),
     ("the demo script saves each sentence by the guardian's word", 'scripts/demo_map.py',
-     "            print(f\"   {call('POST', 'save', body).get('noted', '')}\")",
-     "            print(body)"),
+     '            logger.info("   %s", call("POST", "save", body).get("noted", ""))',
+     '            logger.info("   %s", body)'),
     ("one sentence falling back twice is one rule", 'guardian/engine/absorb.py',
      '        if any(r.then.lower() == then.lower() for r in rails):\n            continue\n',
      ''),
@@ -1329,7 +1337,7 @@ def _check_one(
 def run(verbose: bool = False, only: list[str] | None = None, workers: int = DEFAULT_WORKERS) -> int:
     chosen = [m for m in MUTANTS if not only or any(word.lower() in m[0].lower() for word in only)]
     if not chosen:
-        print(f"No mutant's label contains: {', '.join(only)}. See --list.")
+        logger.error("No mutant's label contains: %s. See --list.", ", ".join(only))
         return 2
     num_workers = max(1, min(len(chosen), workers))
     with tempfile.TemporaryDirectory(prefix="urithi-mutate-") as tmp_root:
@@ -1342,11 +1350,8 @@ def run(verbose: bool = False, only: list[str] | None = None, workers: int = DEF
             for check in clean_checks:
                 wdir, clean_res, clean_timed_out = check.result()
                 if clean_timed_out:
-                    print(
-                        f"ABORTED  clean test suite timed out in worker copy {wdir.name} "
-                        f"after {SUITE_TIMEOUT}s before any mutant was run.",
-                        flush=True,
-                    )
+                    logger.error("ABORTED  clean test suite timed out in worker copy %s after %ss before any "
+                                 "mutant was run.", wdir.name, SUITE_TIMEOUT)
                     return 1
                 if clean_res.returncode != 0:
                     summary = next(
@@ -1355,11 +1360,8 @@ def run(verbose: bool = False, only: list[str] | None = None, workers: int = DEF
                         if (clean_res.stdout or clean_res.stderr).strip()
                         else f"exit code {clean_res.returncode}",
                     )
-                    print(
-                        f"ABORTED  clean test suite failed in worker copy {wdir.name} "
-                        f"before any mutant was run: {summary}",
-                        flush=True,
-                    )
+                    logger.error("ABORTED  clean test suite failed in worker copy %s before any mutant was run: %s",
+                                 wdir.name, summary)
                     return 1
             for wdir in worker_dirs:
                 worker_pool.put(wdir)
@@ -1369,15 +1371,15 @@ def run(verbose: bool = False, only: list[str] | None = None, workers: int = DEF
             for fut in futures:
                 noticed, line_out = fut.result()
                 caught += int(noticed)
-                print(line_out, flush=True)
+                (logger.info if noticed else logger.error)(line_out)
 
-    print(f"\n{caught}/{len(chosen)} mutants caught")
+    logger.info("%d/%d mutants caught", caught, len(chosen))
     return 0 if caught == len(chosen) else 1
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--list", action="store_true", help="print the mutants, run nothing")
+    parser.add_argument("--list", action="store_true", help="list the mutants, run nothing")
     parser.add_argument("--verbose", action="store_true", help="name the test that caught each")
     parser.add_argument("--only", action="append", metavar="WORDS",
                         help="run only the mutants whose label contains WORDS (repeatable)")
@@ -1387,7 +1389,7 @@ def main() -> int:
 
     if args.list:
         for label, relative, _, _ in MUTANTS:
-            print(f"{relative:38} {label}")
+            logger.info("%-38s %s", relative, label)
         return 0
     return run(verbose=args.verbose, only=args.only, workers=args.workers)
 

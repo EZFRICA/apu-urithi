@@ -24,7 +24,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from apu.logger import get_logger  # noqa: E402
 from guardian.engine.workmap import Guardrail, Step, WorkMapStore  # noqa: E402
+
+logger = get_logger("migrate_step_rules")
 
 
 def given_by_mistake(step: Step, guardrails: list[Guardrail], earlier: list[Step]) -> list[str]:
@@ -66,12 +69,12 @@ def migrate(store: WorkMapStore, apply: bool) -> int:
             continue
         count += 1
         when = {g.guardrail_id: g.when for g in work_map.guardrails}
-        print(f"{work_map.expert} | {work_map.task} | {work_map.map_id}")
+        logger.info("%s | %s | %s", work_map.expert, work_map.task, work_map.map_id)
         for step, wrong in changed:
-            print(f"  step {step.number} ({step.title[:60]}): unlink {len(wrong)} rule(s): "
-                  + "; ".join(when.get(g, g)[:50] for g in wrong))
+            logger.info("  step %s (%s): unlink %d rule(s): %s", step.number, step.title[:60], len(wrong),
+                        "; ".join(when.get(g, g)[:50] for g in wrong))
         for step, wrong in kept_changed:
-            print(f"  validated step {step.number}: unlink {len(wrong)} rule(s)")
+            logger.info("  validated step %s: unlink %d rule(s)", step.number, len(wrong))
         if apply:
             work_map.steps = steps
             if kept_changed:
@@ -89,9 +92,9 @@ def main() -> int:
     if args.apply and Path(store.path).exists():
         backup = Path(store.path).with_name(f"workmap-before-step-rules-{datetime.now(UTC):%Y%m%dT%H%M%S}.sqlite3")
         shutil.copy2(store.path, backup)
-        print(f"copy of the maps kept: {backup}")
+        logger.info("copy of the maps kept: %s", backup)
     count = migrate(store, args.apply)
-    print(f"{count} map(s) {'changed' if args.apply else 'would change'}")
+    logger.info("%d map(s) %s", count, "changed" if args.apply else "would change")
     return 0
 
 

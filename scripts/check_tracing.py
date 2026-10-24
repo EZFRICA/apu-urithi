@@ -4,9 +4,9 @@ Check the Arize key: one small model call, traced the way the server traces, the
 
     uv run python scripts/check_tracing.py
 
-It needs ARIZE_API_KEY and ARIZE_SPACE_ID (and GEMINI_API_KEY for the call). It prints how many
+It needs ARIZE_API_KEY and ARIZE_SPACE_ID (and GEMINI_API_KEY for the call). It logs how many
 spans were made, whether any of them holds the words sent or answered (none may: apu/observability.py
-hides every text), and whether Arize took them or refused them. No key or id is ever printed; a
+hides every text), and whether Arize took them or refused them. No key or id is ever logged; a
 refusal is said by its kind, not by what the server wrote back.
 """
 
@@ -17,8 +17,10 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from apu import config, meter, observability  # noqa: E402
+from apu.logger import get_logger  # noqa: E402
 from exchange.counters import SqliteCounters  # noqa: E402
 
+logger = get_logger("check_tracing")
 PROMPT = "Reply with the single word: ready. (urithi tracing check)"
 
 
@@ -40,13 +42,13 @@ class _Refusals(logging.Handler):
 
 def main() -> int:
     if not observability.configured():
-        print(f"Tracing is not set up: {config.ARIZE_API_KEY_ENV} and {config.ARIZE_SPACE_ID_ENV} are both needed.")
+        logger.error("Tracing is not set up: %s and %s are both needed.", config.ARIZE_API_KEY_ENV, config.ARIZE_SPACE_ID_ENV)
         return 1
     refusals = _Refusals()
     logging.getLogger("opentelemetry").addHandler(refusals)
     provider = observability.start(project=f"{config.TRACING_PROJECT}-check")
     if provider is None:
-        print("Tracing could not start; see the log above (no secret is in it).")
+        logger.error("Tracing could not start; see the log above (no secret is in it).")
         return 1
     from opentelemetry.sdk.trace.export import SimpleSpanProcessor
     from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
@@ -63,12 +65,12 @@ def main() -> int:
     spans = kept.get_finished_spans()
     texts = [s.name for s in spans for v in (s.attributes or {}).values()
              if isinstance(v, str) and (PROMPT[:30] in v or (answer.strip() and answer.strip()[:20] in v))]
-    print(f"spans made: {len(spans)} ({', '.join(sorted({s.name for s in spans})) or 'none'})")
-    print(f"spans holding the words sent or answered: {len(texts)}")
+    logger.info("spans made: %d (%s)", len(spans), ", ".join(sorted({s.name for s in spans})) or "none")
+    logger.info("spans holding the words sent or answered: %d", len(texts))
     if refusals.kinds:
-        print(f"Arize refused or could not be reached: {', '.join(sorted(set(refusals.kinds)))}")
+        logger.error("Arize refused or could not be reached: %s", ", ".join(sorted(set(refusals.kinds))))
         return 1
-    print(f"sent to Arize, project {config.TRACING_PROJECT}-check: no refusal from the exporter")
+    logger.info("sent to Arize, project %s-check: no refusal from the exporter", config.TRACING_PROJECT)
     return 0 if spans and not texts else 1
 
 
