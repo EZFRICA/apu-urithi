@@ -102,6 +102,17 @@ BRIGHTDATA_SERP_ZONE_ENV = "BRIGHTDATA_SERP_ZONE"
 BRIGHTDATA_UNLOCKER_ZONE_ENV = "BRIGHTDATA_UNLOCKER_ZONE"
 TAVILY_TOKEN_ENV = "TAVILY_API_KEY"
 
+# Traces of the model calls, sent to Arize when both are set (apu/observability.py); never their texts.
+ARIZE_API_KEY_ENV = "ARIZE_API_KEY"
+ARIZE_SPACE_ID_ENV = "ARIZE_SPACE_ID"
+TRACING_PROJECT = os.environ.get("URITHI_TRACING_PROJECT", "urithi")
+TRACING_SWITCH_ENV = "URITHI_TRACING"      # "0" turns it off; read at each start, so the tests can
+# Where the Arize space lives: "us" (the default) or "eu". A space made in Europe is unknown to the US
+# endpoint, which answers "invalid Space ID" (measured on 2026-10-24).
+TRACING_REGION_ENV = "URITHI_TRACING_REGION"
+# "1" shows the prompts and answers in the traces (the owner's choice); anything else keeps them hidden.
+TRACING_TEXTS_ENV = "URITHI_TRACING_TEXTS"
+
 # An answer is an answer, not a lecture: a recording over this size is refused before it is
 # uploaded, and a text is cut before it is read out.
 VOICE_MAX_RECORDING_BYTES = int(

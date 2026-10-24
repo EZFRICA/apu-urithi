@@ -32,7 +32,7 @@ from fastapi import FastAPI  # noqa: E402
 from fastapi.responses import JSONResponse, RedirectResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 
-from apu import config, meter  # noqa: E402
+from apu import config, meter, observability  # noqa: E402
 from exchange.counters import SqliteCounters  # noqa: E402
 from guardian import config as guardian_config  # noqa: E402
 from guardian.api.inbox_routes import router as inbox_router  # noqa: E402
@@ -109,7 +109,9 @@ async def lifespan(_app):
         import threading
 
         threading.Thread(target=warm_up, name="warm-up", daemon=True).start()
+    observability.start()                  # model calls traced to Arize when it is set up, texts hidden
     yield
+    observability.stop()
 
 
 app = FastAPI(title="Urithi", lifespan=lifespan)

@@ -106,7 +106,7 @@ def test_every_setting_has_this_projects_own_prefix():
     shared_by_design = {"ELEVENLABS_VOICE_ID", "GEMINI_TRANSCRIBE_MODEL", "GEMINI_TTS_MODEL",
                         "GEMINI_TTS_VOICE", "GEMINI_API_KEY", "ELEVENLABS_API_KEY",
                         "BRIGHTDATA_API_TOKEN", "BRIGHTDATA_SERP_ZONE",
-                        "BRIGHTDATA_UNLOCKER_ZONE", "TAVILY_API_KEY",
+                        "BRIGHTDATA_UNLOCKER_ZONE", "TAVILY_API_KEY", "ARIZE_API_KEY", "ARIZE_SPACE_ID",
                         "GCS_BUCKET_NAME"}     # the bucket, as the machine names it for every project
     # Each package reads its own prefix: one side's settings can never move the other's data.
     prefixes = {"apu": "URITHI_", "library": "URITHI_", "exchange": "EXCHANGE_",

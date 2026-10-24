@@ -16,6 +16,8 @@ from apu import config as _apu_config
 # A client is only built when a role is called; fake, non-empty keys let it build, and the
 # tests replace the call itself before it could leave.
 os.environ[_apu_config.GEMINI_API_KEY_ENV] = "test-key-not-real-do-not-use"
+# No test sends a trace to Arize, whatever .env holds (apu/observability.py).
+os.environ[_apu_config.TRACING_SWITCH_ENV] = "0"
 
 
 @pytest.fixture(autouse=True)

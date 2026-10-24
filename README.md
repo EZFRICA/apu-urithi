@@ -48,6 +48,7 @@ For what each side does and how knowledge is kept see [docs/readme-sides.md](doc
 | `URITHI_PORT` | 8790 by default |
 | `URITHI_CLASS_VISION_MODEL`, `URITHI_QUESTION_MODEL`, `URITHI_ANSWER_MODEL` | faster models for what a person waits on: a class's frames, the question asked, a learner's answer (the main model when unset) |
 | `GUARDIAN_SOURCES_BUCKET` | where documents a validated part cites are archived (else `GCS_BUCKET_NAME`) |
+| `ARIZE_API_KEY`, `ARIZE_SPACE_ID` | traces of the model calls in Arize (model, time, tokens, errors), no prompt or answer unless `URITHI_TRACING_TEXTS=1` (the owner's choice: then they are stored at Arize, distress included); `URITHI_TRACING_REGION=eu` for a space in Europe; `URITHI_TRACING=0` turns them off; `uv run python scripts/check_tracing.py` tests the key |
 
 The embedding model lives in `models/` (about 240 MB) and is never downloaded at runtime. The
 `Dockerfile` runs on Cloud Run with keys from Secret Manager.

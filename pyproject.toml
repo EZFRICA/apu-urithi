@@ -31,6 +31,8 @@ dependencies = [
     "lancedb>=0.30.2,<0.31",
     "pandas",
     "pyarrow",
+    "arize-otel>=0.14.1",
+    "openinference-instrumentation-google-genai>=1.4.14",
 ]
 
 [dependency-groups]
