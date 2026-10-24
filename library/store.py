@@ -16,6 +16,7 @@ Both implement one contract, and the tests hold both to it:
 """
 
 import os
+from contextlib import contextmanager
 from dataclasses import asdict
 
 from apu import config
@@ -23,7 +24,8 @@ from apu.embeddings import get_embedder
 from apu.logger import get_logger
 from library import config as library_config
 from library import keywords
-from library.model import ACCESS_LEVELS, LINK_TYPES, KnowledgeError, Publication, check_organisation
+from library.model import (ACCESS_LEVELS, LINK_TYPES, KnowledgeError, LibraryUnavailable, Publication,
+                           check_organisation)
 
 logger = get_logger(__name__)
 
@@ -157,8 +159,18 @@ class Neo4jKnowledgeStore:
         self.database = database or None
         self._schema_ready = False
 
+    @contextmanager
     def _session(self):
-        return self.driver.session(database=self.database)
+        """Every query goes through here, so a library out of reach is one error, said by its kind:
+        the driver's own message names the address."""
+        from neo4j.exceptions import AuthError, ServiceUnavailable, SessionExpired
+
+        try:
+            with self.driver.session(database=self.database) as session:
+                yield session
+        except (ServiceUnavailable, SessionExpired, AuthError) as error:
+            logger.warning("The library cannot be reached (%s).", type(error).__name__)
+            raise LibraryUnavailable() from None
 
     def _read(self, query: str, **params) -> list[dict]:
         with self._session() as s:

@@ -52,6 +52,7 @@ const STRINGS = {
       illustrations: "You have reached today's limit for illustrations.",
       model_cost: "Worded answers are paused for now; the guardian's own words still answer.",
     },
+    libraryDown: "The library cannot be reached just now. What this device keeps still opens; try again in a moment.",
     nearLimit: "You are close to today's limit.",
     restsOnAnswer: (parts) => `This answer rests on ${parts}, which you have not learned yet. You may carry on.`,
     tryCase: "Try a case on this", reviewsDue: (n) => `${n} review${n === 1 ? " is" : "s are"} due.`,
@@ -146,6 +147,7 @@ const STRINGS = {
       illustrations: "Tu as atteint la limite d'illustrations pour aujourd'hui.",
       model_cost: "Les réponses formulées sont en pause ; les mots du gardien répondent toujours.",
     },
+    libraryDown: "La bibliothèque est injoignable pour l'instant. Ce que garde cet appareil s'ouvre toujours ; réessaie dans un moment.",
     nearLimit: "Tu approches de la limite du jour.",
     restsOnAnswer: (parts) => `Cette réponse s'appuie sur ${parts}, que tu n'as pas encore appris. Tu peux continuer.`,
     tryCase: "Essayer un cas là-dessus", reviewsDue: (n) => `${n} révision${n > 1 ? "s" : ""} à faire.`,
@@ -310,7 +312,9 @@ class Learn {
     if (!response.ok) {
       const detail = await response.json().catch(() => ({}));
       // A refused budget is said in the page's language, from what ran out (apu/meter.py).
-      const said = response.status === 429 && detail.refused ? this.t("refused")[detail.refused] : null;
+      // So is a library out of reach (server.py), which a kept package stands in for.
+      const said = response.status === 429 && detail.refused ? this.t("refused")[detail.refused]
+        : response.status === 503 && detail.unavailable === "library" ? this.t("libraryDown") : null;
       throw Object.assign(new Error(said || detail.detail || response.statusText), { status: response.status });
     }
     return response.json();
@@ -550,10 +554,12 @@ class Learn {
     const list = $("bodies");
     list.innerHTML = "";
     let bodies;
+    let unanswered = "";
     try {
       bodies = (await this.api(`bodies?${this.q({})}`)).bodies;
       await this.reconcileKept(bodies);
-    } catch {
+    } catch (error) {
+      unanswered = error.status ? error.message : "";   // offline is said by the network badge
       // No answer from the library: what this device keeps, said as such.
       bodies = (await this.keptAll()).map((pkg) => ({
         body_id: pkg.manifest.body_id, name: pkg.content.body.name, guardian: pkg.content.body.guardian,
@@ -563,7 +569,8 @@ class Learn {
     if (!bodies.length) {
       const li = document.createElement("li");
       li.className = "empty";
-      li.textContent = this.t("nothingHere");
+      // Nothing kept and no answer: why is said, never "nothing published", which the library did not say.
+      li.textContent = unanswered || this.t("nothingHere");
       list.appendChild(li);
       return;
     }

@@ -69,11 +69,13 @@ export class Stage {
     if (!this.bodies.length) {
       this.body = null;
       this.units = [];
-      this.onStatus("offline", this.bridge.isOnline ? "Nothing to learn yet" : "Server not answering");
-      this.prompter.showNotice(this.bridge.isOnline
+      // A list that did not come (the library out of reach) is not an empty one: never "nothing published".
+      const why = this.bridge.unanswered;
+      this.onStatus("offline", why ? "Knowledge not available" : this.bridge.isOnline ? "Nothing to learn yet" : "Server not answering");
+      this.prompter.showNotice(why || (this.bridge.isOnline
         ? "Nothing is published yet that this learner may learn. Choose another learner above, " +
           "or a guardian publishes a knowledge first (scripts/demo_map.py teaches and publishes one)."
-        : "Urithi's server is not answering. Start it with scripts/serve.sh.");
+        : "Urithi's server is not answering. Start it with scripts/serve.sh."));
       return false;
     }
     return this.select(this.bodies.some((b) => b.body_id === bodyId) ? bodyId : this.bodies[0].body_id);

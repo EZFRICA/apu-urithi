@@ -97,10 +97,12 @@ export class ApprenticeBridge {
 
   /** The published knowledge this learner may learn, from every guardian. */
   async bodies() {
+    this.unanswered = "";
     try {
       return (await this._get("bodies")).bodies || [];
     } catch (error) {
       if (!error.status) this._offline(String(error));
+      else this.unanswered = error.message;   // the server answered without the list: why is said
       return [];
     }
   }

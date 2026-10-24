@@ -13,7 +13,7 @@ from guardian.api.routes import writes_map
 from guardian.memory.store import get_maps
 from guardian.publish import body_id_for, publication_from
 from library import access
-from library.model import KnowledgeError
+from library.model import KnowledgeError, LibraryUnavailable
 from library.store import get_store
 
 logger = get_logger("knowledge")
@@ -68,10 +68,17 @@ def knowledge(person_id: str, organisation: str | None = None) -> dict:
         latest[body_id] = {"map_id": work_map.map_id, "task": work_map.task, "body_id": body_id,
                            "created_at": entry["created_at"], "steps": len(work_map.steps),
                            "rules": len(work_map.guardrails), "confirmed": bool(work_map.confirmed_at),
-                           "language": work_map.language,
-                           "published": store.version_of(who.organisation, body_id)}
-    return {"maps": sorted(latest.values(), key=lambda m: m["created_at"], reverse=True),
-            "simulated": access.SIMULATED}
+                           "language": work_map.language}
+    reply = {"simulated": access.SIMULATED}
+    try:
+        for entry in latest.values():
+            entry["published"] = store.version_of(who.organisation, entry["body_id"])
+    except LibraryUnavailable as error:
+        # The maps are the guardian's, kept here: teaching goes on, and only publishing waits.
+        for entry in latest.values():
+            entry["published"] = None
+        reply.update(detail=str(error), unavailable="library")
+    return {"maps": sorted(latest.values(), key=lambda m: m["created_at"], reverse=True), **reply}
 
 
 def _asked_levels(work_map, asked: dict[str, str]) -> dict[str, str]:

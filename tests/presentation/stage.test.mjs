@@ -105,6 +105,13 @@ test("nothing published for this learner is said plainly, and no key pretends to
   assert.deepEqual(bridge.calls, ["bodies"], "nothing was asked of a knowledge that is not there");
 });
 
+test("a list that did not come is said by why, not as nothing published", async () => {
+  const { dom, statuses } = await fresh({ bodies_: [], unanswered: "The library cannot be reached just now." });
+  assert.match(dom.text.textContent, /The library cannot be reached just now/);
+  assert.doesNotMatch(dom.text.textContent, /Nothing is published/);
+  assert.deepEqual(statuses.at(-1), ["offline", "Knowledge not available"]);
+});
+
 test("Read plays the part in the guardian's own words", async () => {
   const { stage, bridge, dom } = await fresh();
   await stage.press("btn_read");

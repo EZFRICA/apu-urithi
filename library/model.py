@@ -22,6 +22,18 @@ class KnowledgeError(ValueError):
     """A record that cannot be stored as given."""
 
 
+class LibraryUnavailable(RuntimeError):
+    """The library cannot be reached: said as such (503), never as a server error, and never with
+    where it lives. Measured on 2026-10-24 with the instance paused: every route reading the library
+    answered 500, and the log named its address."""
+
+    SAID = ("The library cannot be reached just now: nothing was read or changed. Knowledge kept on "
+            "a device still opens; publishing waits until the library is back.")
+
+    def __init__(self):
+        super().__init__(self.SAID)
+
+
 def check_organisation(organisation: str | None) -> str:
     """Every read and every write names its organisation; none is never "all of them"."""
     if not organisation or not str(organisation).strip():
