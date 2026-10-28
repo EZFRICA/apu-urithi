@@ -106,7 +106,7 @@ def test_every_setting_has_this_projects_own_prefix():
     shared_by_design = {"ELEVENLABS_VOICE_ID", "GEMINI_TRANSCRIBE_MODEL", "GEMINI_TTS_MODEL",
                         "GEMINI_TTS_VOICE", "GEMINI_API_KEY", "ELEVENLABS_API_KEY",
                         "BRIGHTDATA_API_TOKEN", "BRIGHTDATA_SERP_ZONE",
-                        "BRIGHTDATA_UNLOCKER_ZONE", "TAVILY_API_KEY",
+                        "BRIGHTDATA_UNLOCKER_ZONE", "TAVILY_API_KEY", "ARIZE_API_KEY", "ARIZE_SPACE_ID",
                         "GCS_BUCKET_NAME"}     # the bucket, as the machine names it for every project
     # Each package reads its own prefix: one side's settings can never move the other's data.
     prefixes = {"apu": "URITHI_", "library": "URITHI_", "exchange": "EXCHANGE_",
@@ -144,6 +144,28 @@ def test_the_server_is_its_own_command_and_is_stopped_by_its_port():
     for path in _source_files(besides_this_one=True):
         if path.suffix in {".py", ".sh", ".md", ".js", ".html", ".toml"}:
             assert "apu.ui.live" not in path.read_text(encoding="utf-8"), path
+
+
+def test_everything_is_said_through_logging_never_print():
+    """Asked by the owner on 2026-10-24: every line goes through apu/logger.py, with its time, level and
+    module, to the console and the log file alike; scripts included. Read as code, not as text, in the
+    files the repository holds (what .gitignore keeps out, palabre/ among them, is not its own)."""
+    import io
+    import tokenize
+
+    listed = subprocess.run(["git", "ls-files", "--cached", "--others", "--exclude-standard", "*.py"],
+                            capture_output=True, text=True, cwd=ROOT, check=True).stdout.split()
+    found = []
+    for path in (ROOT / name for name in listed):
+        if not path.exists():
+            continue
+        tokens = [t for t in tokenize.generate_tokens(io.StringIO(path.read_text(encoding="utf-8")).readline)
+                  if t.type not in (tokenize.NL, tokenize.NEWLINE, tokenize.COMMENT)]
+        for before, name, after in zip([None, *tokens], tokens, [*tokens[1:], None]):
+            if name.type == tokenize.NAME and name.string == "print" and after is not None and after.string == "(" \
+                    and not (before is not None and before.string in (".", "def")):
+                found.append(f"{path.relative_to(ROOT)}:{name.start[0]}")
+    assert not found, f"print instead of logging: {found}"
 
 
 def test_the_port_is_not_the_other_projects_and_the_server_listens_on_loopback():
@@ -232,12 +254,14 @@ def test_the_server_starts_without_a_key_and_a_role_fails_loudly_on_first_use():
         import apu.inference.llm as llm
         from apu import meter
         from exchange.counters import SqliteCounters
-        print("IMPORT_OK")
+        from apu.logger import get_logger
+        log = get_logger("check")
+        log.info("IMPORT_OK")
         meter.set_counters(SqliteCounters(tempfile.mkdtemp() + "/c.sqlite3"))   # as the server does at start
         try:
             llm.call_main_model([{"role": "user", "content": "hi"}])
         except llm.ProviderKeyMissing as e:
-            print("RAISED:", e)
+            log.info("RAISED: %s", e)
         """,
         {"GEMINI_API_KEY": ""},
     )
@@ -278,6 +302,7 @@ def test_one_readiness_check_in_llm_and_no_provider_key_name_or_test_detection_o
         import os
         from apu import config
         from apu.inference import llm
+        from apu.logger import get_logger
         os.environ[config.GEMINI_API_KEY_ENV] = ""
         assert llm.is_configured("main") is False
         assert llm.is_configured("extraction") is False
@@ -290,7 +315,7 @@ def test_one_readiness_check_in_llm_and_no_provider_key_name_or_test_detection_o
         llm.set_client(None)
         config.EXTRACTION_PROVIDER = "unconfigured"
         assert llm.is_configured("extraction") is False
-        print("READY_OK")
+        get_logger("check").info("READY_OK")
         """,
         {"GEMINI_API_KEY": ""},
     )

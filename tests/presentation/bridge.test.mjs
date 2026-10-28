@@ -15,6 +15,7 @@ function server(replies = {}) {
                     body: options.body ? JSON.parse(options.body) : null });
     const reply = replies[url.split("?")[0]];
     if (reply === "down") return { ok: false, status: 502, json: async () => ({}) };
+    if (reply === "library") return { ok: false, status: 503, json: async () => ({ detail: "The library cannot be reached just now.", unavailable: "library" }) };
     return { ok: true, status: 200, json: async () => reply ?? {} };
   };
   return { fetcher, requests };
@@ -81,6 +82,18 @@ test("a server that is down is reported, not taken for nothing to learn", async 
   assert.deepEqual(await bridge.bodies(), []);
   assert.equal(bridge.isOnline, false);
   assert.ok(events.includes("offline"));
+});
+
+test("a library out of reach is kept as why the list is empty, never taken for nothing published", async () => {
+  // Measured on 2026-10-24: with the library paused, the stage said nothing was published.
+  const { fetcher } = server({ "/api/learner/bodies": "library" });
+  const bridge = new ApprenticeBridge({ fetcher });
+  assert.deepEqual(await bridge.bodies(), []);
+  assert.equal(bridge.unanswered, "The library cannot be reached just now.");
+  const { fetcher: back } = server({ "/api/learner/bodies": { bodies: [{ body_id: "b1" }] } });
+  bridge.fetch = back;
+  await bridge.bodies();
+  assert.equal(bridge.unanswered, "", "once it answers, nothing stale is said");
 });
 
 test("the loudspeaker key replays the last thing said, and nothing if nothing was", async () => {

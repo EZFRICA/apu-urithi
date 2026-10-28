@@ -89,3 +89,4 @@ Further measurements by feature:
 - [measured-saving-and-forgetting.md](measured-saving-and-forgetting.md): the review of decision 0016, saving and forgetting, measured live.
 - [measured-maps-pupil-and-learner.md](measured-maps-pupil-and-learner.md): the map written once, the migration, the pupil answering from facts, the learner read again.
 - [measured-search.md](measured-search.md): search by words and meaning, a memory per knowledge, readable memory, saved notes kept saved.
+- [measured-library-unavailable.md](measured-library-unavailable.md): a library out of reach said as such, kept packages and the guardian's maps going on.

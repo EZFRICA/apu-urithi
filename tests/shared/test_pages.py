@@ -102,6 +102,17 @@ def test_a_kept_package_leaves_the_device_when_the_library_no_longer_shows_it():
         "only an answer from the library removes anything, never a failure to reach it"
 
 
+def test_a_library_out_of_reach_is_said_never_read_as_nothing_published():
+    """Measured on 2026-10-24, the library paused: the learner's page said nothing was published, and
+    the guardian's lost the maps being taught (tests/shared/test_library_unavailable.py: the server)."""
+    assert 'detail.unavailable === "library" ? this.t("libraryDown")' in LEARN_JS
+    home = LEARN_JS[LEARN_JS.index("  async showHome()"):][:1400]
+    assert 'unanswered = error.status ? error.message : ""' in home, "offline stays said by the badge"
+    assert 'unanswered || this.t("nothingHere")' in home
+    teach_home = TEACH_JS[TEACH_JS.index("  async loadHome()"):][:900]
+    assert 'reply.unavailable === "library" ? this.t("libraryDown")' in teach_home
+
+
 def test_an_expired_package_is_not_opened_and_a_new_version_replaces_the_kept_one():
     assert "new Date(pkg.manifest.valid_until) <= new Date()" in LEARN_JS
     opening = LEARN_JS[LEARN_JS.index("  async openPath(bodyId)"):][:1400]

@@ -16,6 +16,9 @@ Part of [AGENTS.md](../AGENTS.md).
     memory, which is what the tests use.
   - `GUARDIAN_SOURCES_BUCKET` or `GCS_BUCKET_NAME`: where cited documents are archived.
   - `BRIGHTDATA_API_TOKEN`, `TAVILY_API_KEY`: public sources a rule is checked against.
+  - `ARIZE_API_KEY`, `ARIZE_SPACE_ID`: traces of the model calls, texts hidden (`apu/observability.py`);
+    `URITHI_TRACING_REGION=eu` for a space in Europe; off in the tests; `scripts/check_tracing.py`
+    checks the key with one small call.
   - Faster models for what a person waits on: `URITHI_CLASS_VISION_MODEL`,
     `URITHI_QUESTION_MODEL`, `URITHI_ANSWER_MODEL` (the main model when unset). The owner
     prefers speed; keep the code's safeguards (checks, fallbacks) rather than slower models.

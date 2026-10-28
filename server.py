@@ -32,7 +32,7 @@ from fastapi import FastAPI  # noqa: E402
 from fastapi.responses import JSONResponse, RedirectResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 
-from apu import config, meter  # noqa: E402
+from apu import config, meter, observability  # noqa: E402
 from exchange.counters import SqliteCounters  # noqa: E402
 from guardian import config as guardian_config  # noqa: E402
 from guardian.api.inbox_routes import router as inbox_router  # noqa: E402
@@ -41,6 +41,7 @@ from guardian.api.live_routes import router as guardian_live_router  # noqa: E40
 from guardian.api.source_routes import router as source_router  # noqa: E402
 from guardian.api.routes import router as apprentice_router  # noqa: E402
 from learner.api.routes import router as learning_router  # noqa: E402
+from library.model import LibraryUnavailable  # noqa: E402
 
 ROOT = Path(__file__).parent
 SHARED_UI = ROOT / "apu" / "ui"
@@ -109,7 +110,9 @@ async def lifespan(_app):
         import threading
 
         threading.Thread(target=warm_up, name="warm-up", daemon=True).start()
+    observability.start()                  # model calls traced to Arize when it is set up, texts hidden
     yield
+    observability.stop()
 
 
 app = FastAPI(title="Urithi", lifespan=lifespan)
@@ -119,6 +122,13 @@ app = FastAPI(title="Urithi", lifespan=lifespan)
 async def refused(_request, error: meter.Refused) -> JSONResponse:
     """No budget: told plainly, with what ran out, and never another person's usage."""
     return JSONResponse(status_code=429, content={"detail": error.reason, "refused": error.capability})
+
+
+@app.exception_handler(LibraryUnavailable)
+async def library_unavailable(_request, error: LibraryUnavailable) -> JSONResponse:
+    """The library out of reach: 503, said plainly, so a learner's page opens what it keeps and a
+    guardian's waits to publish (the incident runbook), where a 500 said only that something broke."""
+    return JSONResponse(status_code=503, content={"detail": str(error), "unavailable": "library"})
 app.include_router(apprentice_router)
 app.include_router(knowledge_router)
 app.include_router(learning_router)

@@ -27,8 +27,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fastapi.testclient import TestClient  # noqa: E402
 
 from apu import config  # noqa: E402
+from apu.logger import get_logger  # noqa: E402
 from guardian.api import routes  # noqa: E402
 
+logger = get_logger("demo_map")
 GUARDIAN = {"person_id": "sabine", "organisation": "urithi"}
 TASK = "Code a supplier invoice"
 
@@ -55,7 +57,7 @@ PATHS = ("start", "tell", "save", "provenance", "debrief", "rule", "map/{map_id}
 
 def main(argv: list[str]) -> int:
     if not os.environ.get(config.GEMINI_API_KEY_ENV):
-        print(f"{config.GEMINI_API_KEY_ENV} is not set. Add it to .env first.")
+        logger.error("%s is not set. Add it to .env first.", config.GEMINI_API_KEY_ENV)
         return 1
     if "--guardian" in argv:
         GUARDIAN["person_id"] = argv[argv.index("--guardian") + 1]
@@ -69,24 +71,25 @@ def main(argv: list[str]) -> int:
             return reply.json()
 
         map_id = call("POST", "start", {"task": TASK, "language": "en"})["map_id"]
-        print(f"Work Map {map_id}: {TASK}, taught by {GUARDIAN['person_id']}\n")
+        logger.info("Work Map %s: %s, taught by %s", map_id, TASK, GUARDIAN["person_id"])
 
         for said in SAID:
             proposal = call("POST", "tell", {"map_id": map_id, "said": said}).get("proposal") or {}
             body = {"map_id": map_id, **({"proposal_id": proposal["proposal_id"]} if proposal.get("proposal_id") else {})}
-            print(f"   {call('POST', 'save', body).get('noted', '')}")
+            logger.info("   %s", call("POST", "save", body).get("noted", ""))
 
         if "--quick" not in argv:
             checked = call("POST", "provenance", {"map_id": map_id, "country": "de"})
-            print(f"\nsources: {checked.get('backend')}")
+            logger.info("sources: %s", checked.get("backend"))
             for rail in checked.get("checked", []):
-                print(f"   {rail.get('verdict', ''):<13} {rail.get('when', '')}")
+                logger.info("   %-13s %s", rail.get("verdict", ""), rail.get("when", ""))
 
-        print("\ndebrief")
+        logger.info("debrief")
         probe = call("POST", "debrief", {"map_id": map_id}).get("probe")
         while probe:
             said = RULINGS.get(probe.get("kind"), "Yes, the rule holds as I said it.")
-            print(f"   [{probe.get('kind')}] {probe.get('question', '')[:110]}\n      she says: {said}")
+            logger.info("   [%s] %s", probe.get("kind"), probe.get("question", "")[:110])
+            logger.info("      she says: %s", said)
             ruled = call("POST", "rule", {"map_id": map_id, "probe_id": probe["probe_id"], "said": said})
             case = ruled.get("proposal") or {}
             if case.get("proposal_id"):
@@ -94,16 +97,17 @@ def main(argv: list[str]) -> int:
             probe = ruled.get("probe")
 
         teach_back = call("GET", f"map/{map_id}/teach-back")
-        print(f"\n{teach_back.get('text') or teach_back.get('teach_back', '')}\n")
+        logger.info("teach-back: %s", teach_back.get("text") or teach_back.get("teach_back", ""))
         done = call("POST", "confirm", {"map_id": map_id, "confirmed": True})
-        print(f"confirmed: {done.get('confirmed')}")
+        logger.info("confirmed: %s", done.get("confirmed"))
 
         who = {"map_id": map_id, "person_id": GUARDIAN["person_id"]}
         units = call("POST", "preview", who).get("units", [])
         members = {u["unit_id"]: "community" for u in units if "recognis" in u.get("text", "").lower()}
         published = call("POST", "publish", {**who, "access": members})
-        print(f"published: {published.get('body_id')}, {published.get('units')} parts, {len(members)} for members only")
-        print(f"Open http://localhost:8790/presentation/?knowledge={published.get('body_id')}")
+        logger.info("published: %s, %s parts, %d for members only", published.get("body_id"), published.get("units"),
+                    len(members))
+        logger.info("Open http://localhost:8790/presentation/?knowledge=%s", published.get("body_id"))
     return 0
 
 

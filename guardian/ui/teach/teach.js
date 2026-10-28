@@ -27,6 +27,7 @@ const STRINGS = {
     setupLead: "Talk the way you would to someone new. Urithi asks why at the right moment, writes down your rules in your words, tests them with you, and nothing is published until you have heard it back and said it is right.",
     taskLabel: "What are you teaching?", start: "Start", teachIn: "I teach in", inEnglish: "English", inFrench: "French",
     resumeTitle: "Carry on teaching", resume: "Continue",
+    libraryDown: "The library cannot be reached just now: your teaching is kept, and publishing waits until it is back.",
     mapLine: (m) => `${m.language === "fr" ? "In French" : "In English"}, ${m.steps} step${m.steps === 1 ? "" : "s"}, ${m.rules} rule${m.rules === 1 ? "" : "s"}, ` +
       (m.published ? `version ${m.published} in the library` : "not published yet"),
     inboxTitle: "What learners asked that you have not covered",
@@ -127,6 +128,7 @@ const STRINGS = {
     setupLead: "Parle comme tu le ferais à quelqu'un de nouveau. Urithi demande pourquoi au bon moment, écrit tes règles avec tes mots, les teste avec toi, et rien n'est publié avant que tu l'aies réentendu et dit que c'est juste.",
     taskLabel: "Qu'est-ce que tu enseignes ?", start: "Commencer", teachIn: "J'enseigne en", inEnglish: "anglais", inFrench: "français",
     resumeTitle: "Continuer d'enseigner", resume: "Continuer",
+    libraryDown: "La bibliothèque est injoignable pour l'instant : ton enseignement est gardé, et la publication attend son retour.",
     mapLine: (m) => `${m.language === "fr" ? "En français" : "En anglais"}, ${m.steps} étape${m.steps > 1 ? "s" : ""}, ${m.rules} règle${m.rules > 1 ? "s" : ""}, ` +
       (m.published ? `version ${m.published} dans la bibliothèque` : "pas encore publié"),
     inboxTitle: "Ce que les apprenants ont demandé et que tu n'as pas couvert",
@@ -414,6 +416,9 @@ class Teach {
   async loadHome() {
     const reply = await (await fetch(`/api/guardian/knowledge?person_id=${encodeURIComponent(this.person)}&organisation=${encodeURIComponent(this.organisation)}`)).json().catch(() => ({ maps: [] }));
     this.maps = reply.maps || [];
+    // The library out of reach (server.py): the maps still come, said as not knowing what is published.
+    $("resume-note").textContent = reply.unavailable === "library" ? this.t("libraryDown") : "";
+    $("resume-note").hidden = reply.unavailable !== "library";
     const list = $("resume-list");
     list.innerHTML = "";
     for (const m of this.maps) {
